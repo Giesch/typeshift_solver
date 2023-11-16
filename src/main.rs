@@ -9,7 +9,9 @@ fn main() {
         vec!['l', 'c', 'e', 'y', 's'],
     ];
 
-    let solution = first_solution(&columns, &words);
+    let index = Index::new(columns, words);
+
+    let solution = index.find_first_solution();
 
     dbg!(solution);
 
@@ -29,61 +31,79 @@ fn load_dictionary() -> Vec<&'static str> {
         .collect()
 }
 
-/// Returns the first solution in the dictionary.
-/// The solution is probably not minimal, but will contain no fully unnecessary words.
-///
-/// * `columns` - the problem to solve
-/// * `words` - the dictionary
-fn first_solution<'a>(columns: &'a [Vec<char>], words: &'a [&'static str]) -> Vec<&'a str> {
-    // filter the dictionary down to words that could possibly be used
-    let words: Vec<&str> = words
-        .iter()
-        .map(|s| *s)
-        .filter(|&word| word.len() == columns.len())
-        .filter(|&word| {
-            for (i, word_ch) in word.char_indices() {
-                if !columns[i].contains(&word_ch) {
-                    return false;
+struct Index {
+    columns: Vec<Vec<char>>,
+    words: Vec<UsableWord>,
+}
+
+struct UsableWord {
+    text: &'static str,
+    used_indicies: Vec<usize>,
+}
+
+impl Index {
+    fn new(columns: Vec<Vec<char>>, words: Vec<&'static str>) -> Self {
+        let words: Vec<UsableWord> = words
+            .iter()
+            .filter(|&word| word.len() == columns.len())
+            .filter_map(|word| {
+                let mut used_indicies = Vec::new();
+                for (i, word_ch) in word.char_indices() {
+                    if !columns[i].contains(&word_ch) {
+                        return None;
+                    } else {
+                        used_indicies.push(i);
+                    }
+                }
+
+                Some(UsableWord {
+                    text: &word,
+                    used_indicies,
+                })
+            })
+            .collect();
+
+        Self { columns, words }
+    }
+
+    /// Returns the first solution in the dictionary.
+    /// The solution is probably not minimal, but will contain no fully unnecessary words.
+    fn find_first_solution(&self) -> Vec<&'static str> {
+        // a bool grid matching the input shape,
+        // tracking whether each character has been used
+        let mut checkboxes: Vec<Vec<bool>> = self
+            .columns
+            .iter()
+            .map(|c| c.iter().map(|_| false).collect())
+            .collect();
+
+        let mut solution = Vec::new();
+        for word in &self.words {
+            // fill in appropriate checkboxes
+            let mut word_useful = false;
+            for (col, word_ch) in word.text.char_indices() {
+                // NOTE, this unwrap relies on the filtering above to only usable words
+                let row = self.columns[col]
+                    .iter()
+                    .position(|&col_ch| col_ch == word_ch)
+                    .unwrap();
+
+                if !checkboxes[col][row] {
+                    checkboxes[col][row] = true;
+                    word_useful = true;
                 }
             }
 
-            true
-        })
-        .collect();
+            if word_useful {
+                solution.push(word.text);
+            }
 
-    // a grid matching the input tracking whether each character has been used
-    let mut checkboxes: Vec<Vec<bool>> = columns
-        .iter()
-        .map(|c| c.iter().map(|_| false).collect())
-        .collect();
-
-    let mut solution = Vec::new();
-    for word in words {
-        // fill in appropriate checkboxes
-        let mut word_useful = false;
-        for (col, word_ch) in word.char_indices() {
-            // NOTE, this unwrap relies on the filtering above to only valid words
-            let row = columns[col]
-                .iter()
-                .position(|&col_ch| col_ch == word_ch)
-                .unwrap();
-
-            if !checkboxes[col][row] {
-                checkboxes[col][row] = true;
-                word_useful = true;
+            // check if solved and exit early
+            if checkboxes.iter().flatten().all(|&checked| checked) {
+                break;
             }
         }
 
-        if word_useful {
-            solution.push(word);
-        }
-
-        // check if solved and exit early
-        let solved = checkboxes.iter().flatten().all(|&checked| checked);
-        if solved {
-            break;
-        }
+        solution
     }
-
-    solution
 }

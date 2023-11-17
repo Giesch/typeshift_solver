@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
 // TODO
-// improve 'ranking' of next_words
 // read input from a file or stdin
+// further improve ranking heuristics (rare letters?)
 
 fn main() {
     let words = load_dictionary();
@@ -37,11 +37,7 @@ fn load_dictionary() -> Vec<&'static str> {
 struct Index {
     columns: Vec<Vec<char>>,
     words: Vec<&'static str>,
-    buckets: Buckets,
 }
-
-/// duplicated words matching their shape in the input and char_usages
-type Buckets = Vec<BTreeMap<char, Vec<&'static str>>>;
 
 impl Index {
     fn new(columns: Vec<Vec<char>>, words: Vec<&'static str>) -> Self {
@@ -59,34 +55,7 @@ impl Index {
             })
             .collect();
 
-        // create empty buckets
-        let mut buckets: Buckets = columns
-            .iter()
-            .map(|column| column.iter().map(|&ch| (ch, Vec::new())).collect())
-            .collect();
-
-        // fill buckets
-        for &word in &words {
-            for (col, ch) in word.chars().enumerate() {
-                if let Some(bucket) = buckets[col].get_mut(&ch) {
-                    bucket.push(word);
-                }
-            }
-        }
-
-        Self {
-            columns,
-            words,
-            buckets,
-        }
-    }
-
-    fn lookup_matches(&self, col: usize, ch: char) -> Vec<&'static str> {
-        let Some(bucket) = self.buckets[col].get(&ch) else {
-            return vec![];
-        };
-
-        bucket.clone()
+        Self { columns, words }
     }
 
     /// Returns the first solution in the dictionary.
@@ -137,10 +106,15 @@ impl Index {
         let mut partial_solutions = vec![PartialSolution::new(self, &input_col_lens)];
         let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = BTreeSet::new();
 
+        let mut partial_solutions_touched = 0;
+
         while let Some(mut partial_solution) = partial_solutions.pop() {
+            partial_solutions_touched += 1;
+
             if partial_solution.solved() {
                 let words = partial_solution.used_words.into_iter();
                 if words.len() == optimal_solution_size {
+                    dbg!(partial_solutions_touched);
                     return Vec::from_iter(words);
                 }
 
@@ -167,6 +141,8 @@ impl Index {
             .into_iter()
             .min_by_key(|set| set.len())
             .unwrap();
+
+        dbg!(partial_solutions_touched);
 
         Vec::from_iter(smallest.into_iter())
     }
@@ -207,57 +183,30 @@ impl<'a> PartialSolution<'a> {
         }
     }
 
-    /// 'rank' all untrimmed words in the index, and return all tied for 'best'
+    /// rank all untrimmed words in the index, and return all tied for best
     fn next_words(&mut self) -> Vec<&'static str> {
-        // first, find the column with the least NONZERO unfilled usage rows (defaulting to the first one)
-        // we want the 'narrowest' to reduce the size of the decision tree
-        let mut col_with_min_unused = None;
-        for (col, column) in self.index.columns.iter().enumerate() {
-            let col_usages = &mut self.char_usages[col];
-
-            let mut unfilled_row_count: usize = 0;
-            for &ch in column {
-                let count = *col_usages.entry(ch).or_default();
-                if count == 0 {
-                    unfilled_row_count += 1;
+        let mut ranked_words = Vec::new();
+        for &word in &self.index.words {
+            let mut score: usize = 0;
+            for (col, ch) in word.chars().enumerate() {
+                let usages = *self.char_usages[col].get(&ch).unwrap_or(&0);
+                if usages == 0 {
+                    score += 1;
                 }
             }
 
-            let was_nonzero = unfilled_row_count > 0;
-            let lower_than_previous = col_with_min_unused
-                .map(|(_, previous)| unfilled_row_count < previous)
-                .unwrap_or(true);
-            if was_nonzero && lower_than_previous {
-                col_with_min_unused = Some((col, unfilled_row_count));
-            }
+            ranked_words.push((word, score));
         }
 
-        // if there was no non-zero minimum, then this is a complete solution
-        let Some((col, _)) = col_with_min_unused else {
-            return vec![];
-        };
+        ranked_words.sort_by_key(|(_word, score)| *score);
+        let max_score = ranked_words.last().unwrap().1;
 
-        let mut lookups = Vec::new();
-        let col_usages = &self.char_usages[col];
-        let column = &self.index.columns[col];
-
-        for ch in column {
-            let usage_count = *col_usages.get(ch).unwrap_or(&0);
-            if usage_count == 0 {
-                lookups.push((col, ch));
-            }
-        }
-
-        let matches: BTreeSet<&'static str> = lookups
+        return ranked_words
             .into_iter()
-            .map(|(col, ch)| self.index.lookup_matches(col, *ch))
-            .flatten()
+            .rev()
+            .take_while(|(_word, score)| *score == max_score)
+            .map(|(word, _score)| word)
             .collect();
-
-        matches
-            .difference(&self.trimmed_words)
-            .map(|p| *p)
-            .collect()
     }
 
     fn add_word(&mut self, word: &'static str) {

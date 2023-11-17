@@ -123,19 +123,27 @@ impl Dictionary {
                 continue;
             }
 
-            let mut next_words = partial_solution.next_words();
+            let next_words = partial_solution.next_words();
 
-            while let Some(next_word) = next_words.pop() {
-                let mut partial_solution = partial_solution.clone();
+            use rayon::prelude::*;
 
-                partial_solution.add_word(next_word);
+            let mut next_partial_solutions: Vec<_> = next_words
+                .par_iter()
+                .map(|next_word| {
+                    // TODO
+                    let mut partial_solution = partial_solution.clone();
 
-                for &remaining_word in &next_words {
-                    partial_solution.trimmed_words.insert(remaining_word);
-                }
+                    partial_solution.add_word(next_word);
 
-                partial_solutions.push(partial_solution);
-            }
+                    for &remaining_word in &next_words {
+                        partial_solution.trimmed_words.insert(remaining_word);
+                    }
+
+                    partial_solution
+                })
+                .collect();
+
+            partial_solutions.append(&mut next_partial_solutions);
         }
 
         let smallest = complete_solutions

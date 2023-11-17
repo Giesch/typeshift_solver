@@ -47,8 +47,8 @@ fn load_dictionary() -> Vec<&'static str> {
 #[derive(Debug)]
 struct Typeshift {
     /// The rotated or inverted puzzle input columns
-    /// eg, the first inner vec of this would be the leftmost column of the puzzle
-    columns: Vec<Vec<char>>,
+    /// eg, the first inner set of this would be the leftmost column of the puzzle
+    columns: Vec<BTreeSet<char>>,
     /// A dictionary of usable words, reduced to match the input
     words: Vec<&'static str>,
 }
@@ -56,7 +56,7 @@ struct Typeshift {
 impl Typeshift {
     /// Returns a new filtered dictionary from a puzzle input and the loaded full-size dictionary.
     /// Includes only (and all) words that can be made with the puzzle input columns.
-    fn new(columns: Vec<Vec<char>>, words: Vec<&'static str>) -> Self {
+    fn new(columns: Vec<BTreeSet<char>>, words: Vec<&'static str>) -> Self {
         let words: Vec<&'static str> = words
             .iter()
             .filter(|&word| word.len() == columns.len())
@@ -77,7 +77,7 @@ impl Typeshift {
     /// Returns the first minimal solution found using breadth-first-search & heuristics,
     /// and the number of intermediate partial solutions touched along the way.
     fn find_best_solution(&self) -> (BTreeSet<&'static str>, usize) {
-        let optimal_solution_size = self.columns.iter().map(Vec::len).max().unwrap();
+        let optimal_solution_size = self.columns.iter().map(|c| c.len()).max().unwrap();
 
         let mut steps: usize = 0;
         let mut partial_solutions = vec![PartialSolution::new(self)];
@@ -225,7 +225,7 @@ impl<'a> PartialSolution<'a> {
 
 /// Converts an input file of a rotated/inverted typeshift
 /// into a char table to be solved.
-fn into_columns(input: &str) -> Vec<Vec<char>> {
+fn into_columns(input: &str) -> Vec<BTreeSet<char>> {
     input.lines().map(|l| l.chars().collect()).collect()
 }
 

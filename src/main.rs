@@ -2,54 +2,34 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
 // TODO
-// include input from a file or read stdin
-// use old puzzles as test cases; include max partial solutions touched as output
-//
 // improve next_words ranking heuristics (rare letters?)
-// prepare a cached index for 5 letter words?
 // rank partial solutions somehow, and use a priority queue instead of BFS
-// try preserving & updating ranking state/index instead of reranking
 // look for more trimming improvements
 // include a filtered 5-letter dictionary as straight bytes
-// do real benchmark testing
+//   also index it ahead of time somehow?
+// do real benchmark testing; maybe switch to snapshots for unit tests
+// try preserving & updating ranking state/index instead of reranking
 
 fn main() {
     let start = Instant::now();
 
     let words = load_dictionary();
-    let after_dict_load = Instant::now();
-
-    // let columns = vec![
-    //     vec!['w', 's', 'a', 'b'],
-    //     vec!['h', 'b', 't', 'a'],
-    //     vec!['o', 'e', 's', 'u'],
-    //     vec!['d', 'p', 'i', 'v', 'e'],
-    //     vec!['l', 'c', 'e', 'y', 's'],
-    // ];
-
-    let columns = vec![
-        vec!['q', 'a', 'g', 'w', 'm'],
-        vec!['o', 'g', 'a', 'u'],
-        vec!['u', 'a', 'i', 't', 'o'],
-        vec!['i', 'd', 'e', 't', 'c'],
-        vec!['h', 's', 'n', 'r', 'k'],
-    ];
+    let input = include_str!("../files/puzzle-11-17-2023.txt");
+    let columns = into_columns(input);
+    let after_load = Instant::now();
 
     let typeshift = Typeshift::new(columns, words);
-    let after_dict_filter = Instant::now();
-
-    let best_solution = typeshift.find_best_solution();
+    let (solution, steps) = typeshift.find_best_solution();
     let after_solve = Instant::now();
 
-    println!("best solution: {best_solution:#?}");
+    dbg!(solution);
+    dbg!(steps);
 
-    let dict_load = after_dict_load.duration_since(start);
-    let dict_filter = after_dict_filter.duration_since(after_dict_load);
-    let solve = after_solve.duration_since(after_dict_filter);
+    let load = after_load.duration_since(start);
+    let solve = after_solve.duration_since(after_load);
     let total = after_solve.duration_since(start);
 
-    dbg!(dict_load);
-    dbg!(dict_filter);
+    dbg!(load);
     dbg!(solve);
     dbg!(total);
 }
@@ -66,7 +46,8 @@ fn load_dictionary() -> Vec<&'static str> {
 /// An unsolved Typeshift puzzle
 #[derive(Debug)]
 struct Typeshift {
-    /// The 'rotated' or 'inverted' puzzle input columns
+    /// The rotated or inverted puzzle input columns
+    /// eg, the first inner vec of this would be the leftmost column of the puzzle
     columns: Vec<Vec<char>>,
     /// A dictionary of usable words, reduced to match the input
     words: Vec<&'static str>,
@@ -93,24 +74,23 @@ impl Typeshift {
         Self { columns, words }
     }
 
-    /// Returns the first minimal solution found using breadth-first-search & heuristics.
-    fn find_best_solution(&self) -> BTreeSet<&'static str> {
+    /// Returns the first minimal solution found using breadth-first-search & heuristics,
+    /// and the number of intermediate partial solutions touched along the way.
+    fn find_best_solution(&self) -> (BTreeSet<&'static str>, usize) {
         let optimal_solution_size = self.columns.iter().map(Vec::len).max().unwrap();
 
+        let mut steps: usize = 0;
         let mut partial_solutions = vec![PartialSolution::new(self)];
         let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = BTreeSet::new();
 
-        let mut partial_solutions_touched = 0;
-
         while let Some(mut partial_solution) = partial_solutions.pop() {
-            partial_solutions_touched += 1;
+            steps += 1;
 
             if partial_solution.solved() {
                 let words = partial_solution.used_words;
                 if words.len() == optimal_solution_size {
-                    dbg!(partial_solutions_touched);
                     // NOTE comment this out to find & log all minimal solutions
-                    return words;
+                    return (words, steps);
                 }
 
                 complete_solutions.insert(BTreeSet::from_iter(words));
@@ -131,8 +111,6 @@ impl Typeshift {
             }
         }
 
-        dbg!(partial_solutions_touched);
-
         let minimum_size = complete_solutions
             .iter()
             .min_by_key(|set| set.len())
@@ -146,7 +124,7 @@ impl Typeshift {
 
         dbg!(&all_smallest);
 
-        all_smallest.pop_first().unwrap()
+        (all_smallest.pop_first().unwrap(), steps)
     }
 }
 
@@ -188,7 +166,8 @@ impl<'a> PartialSolution<'a> {
         }
     }
 
-    /// rank all untrimmed words, and return all tied for best
+    /// Ranks all untrimmed words, and returns all tied for best.
+    /// Returns an emtpy Vec if this solution should be abandoned.
     fn next_words(&mut self) -> Vec<&'static str> {
         let mut ranked_words = Vec::new();
         for &word in &self.typeshift.words {
@@ -211,6 +190,9 @@ impl<'a> PartialSolution<'a> {
             .rev()
             .take_while(|(_word, score)| *score == max_score)
             .map(|(word, _score)| word)
+            // NOTE it's important to do this after scoring, instead of before;
+            // this leads to better trimming by returning an empty Vec
+            // if the sibling solutions are better than this one
             .filter(|word| !self.trimmed_words.contains(word))
             .collect();
     }
@@ -238,5 +220,51 @@ impl<'a> PartialSolution<'a> {
         }
 
         true
+    }
+}
+
+/// Converts an input file of a rotated/inverted typeshift
+/// into a char table to be solved.
+fn into_columns(input: &str) -> Vec<Vec<char>> {
+    input.lines().map(|l| l.chars().collect()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn nov_16_2023() {
+        let input = include_str!("../files/puzzle-11-16-2023.txt");
+        let expected_solution = ["above", "basic", "steel", "study", "whups"];
+        let max_steps = 201;
+
+        test_input(input, expected_solution, max_steps);
+    }
+
+    #[test]
+    fn nov_17_2023() {
+        let input = include_str!("../files/puzzle-11-17-2023.txt");
+        let expected_solution = ["again", "gater", "mouth", "quick", "woods"];
+        let max_steps = 4567;
+
+        test_input(input, expected_solution, max_steps);
+    }
+
+    fn test_input(
+        input: &str,
+        expected_solution: impl Into<BTreeSet<&'static str>>,
+        max_steps: usize,
+    ) {
+        let words = load_dictionary();
+        let columns = into_columns(input);
+
+        let typeshift = Typeshift::new(columns, words);
+        let (solution, steps) = typeshift.find_best_solution();
+
+        assert_eq!(solution, expected_solution.into());
+        assert!(steps <= max_steps);
     }
 }

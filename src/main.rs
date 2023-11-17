@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Debug;
 
 // TODO
 // read input from a file or stdin
 // further improve ranking heuristics (rare letters?)
+// try preserving ranking state
 
 fn main() {
     let words = load_dictionary();
@@ -16,12 +16,12 @@ fn main() {
         vec!['l', 'c', 'e', 'y', 's'],
     ];
 
-    let index = Index::new(columns, words);
+    let dict = Dictionary::new(columns, words);
 
-    let first_solution = index.find_first_solution();
+    let first_solution = dict.find_first_solution();
     println!("first solution: {first_solution:#?}");
 
-    let best_solution = index.find_best_solution();
+    let best_solution = dict.find_best_solution();
     println!("best solution: {best_solution:#?}");
 }
 
@@ -34,12 +34,13 @@ fn load_dictionary() -> Vec<&'static str> {
         .collect()
 }
 
-struct Index {
+struct Dictionary {
     columns: Vec<Vec<char>>,
     words: Vec<&'static str>,
 }
 
-impl Index {
+impl Dictionary {
+    /// Returns a new filtered dictionary from a puzzle input and the loaded full-size dictionary.
     fn new(columns: Vec<Vec<char>>, words: Vec<&'static str>) -> Self {
         let words: Vec<&'static str> = words
             .iter()
@@ -150,7 +151,7 @@ impl Index {
 
 #[derive(Clone)]
 struct PartialSolution<'a> {
-    index: &'a Index,
+    dict: &'a Dictionary,
     /// the words in the solution so far
     used_words: BTreeSet<&'static str>,
     /// the current total usages of a positional character from the input grid
@@ -159,7 +160,7 @@ struct PartialSolution<'a> {
     trimmed_words: BTreeSet<&'static str>,
 }
 
-impl<'a> Debug for PartialSolution<'a> {
+impl<'a> std::fmt::Debug for PartialSolution<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PartialSolution")
             .field("used_words", &self.used_words)
@@ -170,23 +171,23 @@ impl<'a> Debug for PartialSolution<'a> {
 }
 
 impl<'a> PartialSolution<'a> {
-    fn new(index: &'a Index, input_col_lens: &[usize]) -> Self {
+    fn new(dict: &'a Dictionary, input_col_lens: &[usize]) -> Self {
         let input_cols = input_col_lens.len();
         let char_usages: Vec<BTreeMap<char, usize>> =
             (0..input_cols).map(|_| Default::default()).collect();
 
         Self {
-            index,
+            dict,
             used_words: Default::default(),
             char_usages,
             trimmed_words: Default::default(),
         }
     }
 
-    /// rank all untrimmed words in the index, and return all tied for best
+    /// rank all untrimmed words in the dict, and return all tied for best
     fn next_words(&mut self) -> Vec<&'static str> {
         let mut ranked_words = Vec::new();
-        for &word in &self.index.words {
+        for &word in &self.dict.words {
             let mut score: usize = 0;
             for (col, ch) in word.chars().enumerate() {
                 let usages = *self.char_usages[col].get(&ch).unwrap_or(&0);
@@ -221,7 +222,7 @@ impl<'a> PartialSolution<'a> {
     }
 
     fn solved(&mut self) -> bool {
-        for (col, col_chars) in self.index.columns.iter().enumerate() {
+        for (col, col_chars) in self.dict.columns.iter().enumerate() {
             let usages = &mut self.char_usages[col];
             for &ch in col_chars {
                 let count = *usages.entry(ch).or_default();

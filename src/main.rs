@@ -1,10 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
+// TODO
+// improve 'ranking' of next_words
+// read input from a file or stdin
+
 fn main() {
     let words = load_dictionary();
 
-    // TODO read this from a file or stdin
     let columns = vec![
         vec!['w', 's', 'a', 'b'],
         vec!['h', 'b', 't', 'a'],
@@ -34,7 +37,11 @@ fn load_dictionary() -> Vec<&'static str> {
 struct Index {
     columns: Vec<Vec<char>>,
     words: Vec<&'static str>,
+    buckets: Buckets,
 }
+
+/// duplicated words matching their shape in the input and char_usages
+type Buckets = Vec<BTreeMap<char, Vec<&'static str>>>;
 
 impl Index {
     fn new(columns: Vec<Vec<char>>, words: Vec<&'static str>) -> Self {
@@ -52,16 +59,34 @@ impl Index {
             })
             .collect();
 
-        Self { columns, words }
+        // create empty buckets
+        let mut buckets: Buckets = columns
+            .iter()
+            .map(|column| column.iter().map(|&ch| (ch, Vec::new())).collect())
+            .collect();
+
+        // fill buckets
+        for &word in &words {
+            for (col, ch) in word.chars().enumerate() {
+                if let Some(bucket) = buckets[col].get_mut(&ch) {
+                    bucket.push(word);
+                }
+            }
+        }
+
+        Self {
+            columns,
+            words,
+            buckets,
+        }
     }
 
-    // TODO make this better; actually index
     fn lookup_matches(&self, col: usize, ch: char) -> Vec<&'static str> {
-        self.words
-            .iter()
-            .filter(|&word| word.chars().nth(col) == Some(ch))
-            .map(|word| *word)
-            .collect()
+        let Some(bucket) = self.buckets[col].get(&ch) else {
+            return vec![];
+        };
+
+        bucket.clone()
     }
 
     /// Returns the first solution in the dictionary.
@@ -105,8 +130,9 @@ impl Index {
         solution
     }
 
-    /// iteratively find the best solution using backtracking & heuristics
+    /// Returns the first optimal solution found using backtracking & heuristics.
     fn find_best_solution(&self) -> Vec<&'static str> {
+        let optimal_solution_size = self.columns.iter().map(|c| c.len()).max().unwrap();
         let input_col_lens: Vec<_> = self.columns.iter().map(|c| c.len()).collect();
         let mut partial_solutions = vec![PartialSolution::new(self, &input_col_lens)];
         let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = BTreeSet::new();
@@ -114,6 +140,10 @@ impl Index {
         while let Some(mut partial_solution) = partial_solutions.pop() {
             if partial_solution.solved() {
                 let words = partial_solution.used_words.into_iter();
+                if words.len() == optimal_solution_size {
+                    return Vec::from_iter(words);
+                }
+
                 complete_solutions.insert(BTreeSet::from_iter(words));
                 continue;
             }
@@ -181,12 +211,11 @@ impl<'a> PartialSolution<'a> {
     fn next_words(&mut self) -> Vec<&'static str> {
         // first, find the column with the least NONZERO unfilled usage rows (defaulting to the first one)
         // we want the 'narrowest' to reduce the size of the decision tree
-        //   TODO it might be better to do this instead by using the size of the potential dictionary matches
         let mut col_with_min_unused = None;
         for (col, column) in self.index.columns.iter().enumerate() {
             let col_usages = &mut self.char_usages[col];
 
-            let mut unfilled_row_count = 0;
+            let mut unfilled_row_count: usize = 0;
             for &ch in column {
                 let count = *col_usages.entry(ch).or_default();
                 if count == 0 {
@@ -234,7 +263,6 @@ impl<'a> PartialSolution<'a> {
     fn add_word(&mut self, word: &'static str) {
         debug_assert!(!self.trimmed_words.contains(word));
 
-        // update usages
         for (col, word_ch) in word.char_indices() {
             let entry = self.char_usages[col].entry(word_ch).or_default();
             *entry += 1;

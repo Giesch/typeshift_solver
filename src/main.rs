@@ -36,11 +36,11 @@ fn main() {
         vec!['h', 's', 'n', 'r', 'k'],
     ];
 
-    let dict = Dictionary::new(columns, words);
+    let typeshift = Typeshift::new(columns, words);
 
     let after_dict_filter = Instant::now();
 
-    let best_solution = dict.find_best_solution();
+    let best_solution = typeshift.find_best_solution();
 
     let after_solve = Instant::now();
 
@@ -70,13 +70,17 @@ fn load_dictionary() -> Vec<&'static str> {
         .collect()
 }
 
-struct Dictionary {
+/// An unsolved Typeshift puzzle
+struct Typeshift {
+    /// The 'rotated' or 'inverted' puzzle input columns
     columns: Vec<Vec<char>>,
+    /// A dictionary of usable words, reduced to match the input
     words: Vec<&'static str>,
 }
 
-impl Dictionary {
+impl Typeshift {
     /// Returns a new filtered dictionary from a puzzle input and the loaded full-size dictionary.
+    /// Includes only (and all) words that can be made with the puzzle input columns.
     fn new(columns: Vec<Vec<char>>, words: Vec<&'static str>) -> Self {
         let words: Vec<&'static str> = words
             .iter()
@@ -112,11 +116,10 @@ impl Dictionary {
             // fill in appropriate checkboxes
             let mut word_useful = false;
             for (col, word_ch) in word.char_indices() {
-                // NOTE, this unwrap relies on the filtering above to only usable words
                 let row = self.columns[col]
                     .iter()
                     .position(|&col_ch| col_ch == word_ch)
-                    .unwrap();
+                    .unwrap(); // relies on filtering in Typeshift::new
 
                 if !checkboxes[col][row] {
                     checkboxes[col][row] = true;
@@ -196,7 +199,7 @@ impl Dictionary {
 
 #[derive(Clone)]
 struct PartialSolution<'a> {
-    dict: &'a Dictionary,
+    dict: &'a Typeshift,
     /// the words in the solution so far
     used_words: BTreeSet<&'static str>,
     /// the current total usages of a positional character from the input grid
@@ -216,7 +219,7 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
 }
 
 impl<'a> PartialSolution<'a> {
-    fn new(dict: &'a Dictionary) -> Self {
+    fn new(dict: &'a Typeshift) -> Self {
         let char_usages: Vec<BTreeMap<char, usize>> =
             dict.columns.iter().map(|_| Default::default()).collect();
 

@@ -17,7 +17,6 @@ fn main() {
     let start = Instant::now();
 
     let words = load_dictionary();
-
     let after_dict_load = Instant::now();
 
     // let columns = vec![
@@ -37,27 +36,21 @@ fn main() {
     ];
 
     let typeshift = Typeshift::new(columns, words);
-
     let after_dict_filter = Instant::now();
 
     let best_solution = typeshift.find_best_solution();
-
     let after_solve = Instant::now();
 
     println!("best solution: {best_solution:#?}");
 
-    let after_print = Instant::now();
-
     let dict_load = after_dict_load.duration_since(start);
     let dict_filter = after_dict_filter.duration_since(after_dict_load);
     let solve = after_solve.duration_since(after_dict_filter);
-    let print = after_print.duration_since(after_solve);
-    let total = after_print.duration_since(start);
+    let total = after_solve.duration_since(start);
 
     dbg!(dict_load);
     dbg!(dict_filter);
     dbg!(solve);
-    dbg!(print);
     dbg!(total);
 }
 
@@ -71,6 +64,7 @@ fn load_dictionary() -> Vec<&'static str> {
 }
 
 /// An unsolved Typeshift puzzle
+#[derive(Debug)]
 struct Typeshift {
     /// The 'rotated' or 'inverted' puzzle input columns
     columns: Vec<Vec<char>>,
@@ -99,51 +93,10 @@ impl Typeshift {
         Self { columns, words }
     }
 
-    /// Returns the first solution in the dictionary.
-    /// The solution is probably not minimal, but will contain no fully unnecessary words.
-    #[allow(unused)]
-    fn find_first_solution(&self) -> Vec<&'static str> {
-        // a bool grid matching the input shape,
-        // tracking whether each character has been used
-        let mut checkboxes: Vec<Vec<bool>> = self
-            .columns
-            .iter()
-            .map(|c| c.iter().map(|_| false).collect())
-            .collect();
-
-        let mut solution = Vec::new();
-        for &word in &self.words {
-            // fill in appropriate checkboxes
-            let mut word_useful = false;
-            for (col, word_ch) in word.char_indices() {
-                let row = self.columns[col]
-                    .iter()
-                    .position(|&col_ch| col_ch == word_ch)
-                    .unwrap(); // relies on filtering in Typeshift::new
-
-                if !checkboxes[col][row] {
-                    checkboxes[col][row] = true;
-                    word_useful = true;
-                }
-            }
-
-            if word_useful {
-                solution.push(word);
-            }
-
-            // check if solved and exit early
-            if checkboxes.iter().flatten().all(|&checked| checked) {
-                break;
-            }
-        }
-
-        solution
-    }
-
     /// Returns the first minimal solution found using breadth-first-search & heuristics.
-    /// If there is no minimal solution, then returns one of the best ones.
-    fn find_best_solution(&self) -> Vec<&'static str> {
+    fn find_best_solution(&self) -> BTreeSet<&'static str> {
         let optimal_solution_size = self.columns.iter().map(Vec::len).max().unwrap();
+
         let mut partial_solutions = vec![PartialSolution::new(self)];
         let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = BTreeSet::new();
 
@@ -153,10 +106,11 @@ impl Typeshift {
             partial_solutions_touched += 1;
 
             if partial_solution.solved() {
-                let words = partial_solution.used_words.into_iter();
+                let words = partial_solution.used_words;
                 if words.len() == optimal_solution_size {
                     dbg!(partial_solutions_touched);
-                    return Vec::from_iter(words);
+                    // NOTE comment this out to find & log all minimal solutions
+                    return words;
                 }
 
                 complete_solutions.insert(BTreeSet::from_iter(words));
@@ -179,27 +133,26 @@ impl Typeshift {
 
         dbg!(partial_solutions_touched);
 
-        let smallest = complete_solutions
+        let minimum_size = complete_solutions
             .iter()
             .min_by_key(|set| set.len())
-            .unwrap();
+            .unwrap()
+            .len();
 
-        let minimum_size = smallest.len();
-
-        let all_smallest: BTreeSet<_> = complete_solutions
+        let mut all_smallest: BTreeSet<_> = complete_solutions
             .into_iter()
             .filter(|sol| sol.len() == minimum_size)
             .collect();
 
         dbg!(&all_smallest);
 
-        Vec::from_iter(all_smallest.first().unwrap().into_iter().map(|s| *s))
+        all_smallest.pop_first().unwrap()
     }
 }
 
 #[derive(Clone)]
 struct PartialSolution<'a> {
-    dict: &'a Typeshift,
+    typeshift: &'a Typeshift,
     /// the words in the solution so far
     used_words: BTreeSet<&'static str>,
     /// the current total usages of a positional character from the input grid
@@ -208,6 +161,7 @@ struct PartialSolution<'a> {
     trimmed_words: BTreeSet<&'static str>,
 }
 
+// deliberately omitting the word list just to make output shorter
 impl<'a> std::fmt::Debug for PartialSolution<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PartialSolution")
@@ -219,22 +173,25 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
 }
 
 impl<'a> PartialSolution<'a> {
-    fn new(dict: &'a Typeshift) -> Self {
-        let char_usages: Vec<BTreeMap<char, usize>> =
-            dict.columns.iter().map(|_| Default::default()).collect();
+    fn new(typeshift: &'a Typeshift) -> Self {
+        let char_usages: Vec<BTreeMap<char, usize>> = typeshift
+            .columns
+            .iter()
+            .map(|_| Default::default())
+            .collect();
 
         Self {
-            dict,
+            typeshift,
             used_words: Default::default(),
             char_usages,
             trimmed_words: Default::default(),
         }
     }
 
-    /// rank all untrimmed words in the dict, and return all tied for best
+    /// rank all untrimmed words, and return all tied for best
     fn next_words(&mut self) -> Vec<&'static str> {
         let mut ranked_words = Vec::new();
-        for &word in &self.dict.words {
+        for &word in &self.typeshift.words {
             let mut score: usize = 0;
             for (col, ch) in word.chars().enumerate() {
                 let usages = *self.char_usages[col].get(&ch).unwrap_or(&0);
@@ -270,7 +227,7 @@ impl<'a> PartialSolution<'a> {
     }
 
     fn solved(&mut self) -> bool {
-        for (col, col_chars) in self.dict.columns.iter().enumerate() {
+        for (col, col_chars) in self.typeshift.columns.iter().enumerate() {
             let usages = &mut self.char_usages[col];
             for &ch in col_chars {
                 let count = *usages.entry(ch).or_default();

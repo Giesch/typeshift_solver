@@ -1,28 +1,64 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::time::Instant;
 
 // TODO
-// read input from a file or stdin
-// further improve ranking heuristics (rare letters?)
-// try preserving ranking state
+// include input from a file or read stdin
+// use old puzzles as test cases; include max partial solutions touched as output
+//
+// improve next_words ranking heuristics (rare letters?)
+// prepare a cached index for 5 letter words?
+// rank partial solutions somehow, and use a priority queue instead of BFS
+// try preserving & updating ranking state/index instead of reranking
+// look for more trimming improvements
+// include a filtered 5-letter dictionary as straight bytes
+// do real benchmark testing
 
 fn main() {
+    let start = Instant::now();
+
     let words = load_dictionary();
 
+    let after_dict_load = Instant::now();
+
+    // let columns = vec![
+    //     vec!['w', 's', 'a', 'b'],
+    //     vec!['h', 'b', 't', 'a'],
+    //     vec!['o', 'e', 's', 'u'],
+    //     vec!['d', 'p', 'i', 'v', 'e'],
+    //     vec!['l', 'c', 'e', 'y', 's'],
+    // ];
+
     let columns = vec![
-        vec!['w', 's', 'a', 'b'],
-        vec!['h', 'b', 't', 'a'],
-        vec!['o', 'e', 's', 'u'],
-        vec!['d', 'p', 'i', 'v', 'e'],
-        vec!['l', 'c', 'e', 'y', 's'],
+        vec!['q', 'a', 'g', 'w', 'm'],
+        vec!['o', 'g', 'a', 'u'],
+        vec!['u', 'a', 'i', 't', 'o'],
+        vec!['i', 'd', 'e', 't', 'c'],
+        vec!['h', 's', 'n', 'r', 'k'],
     ];
 
     let dict = Dictionary::new(columns, words);
 
-    let first_solution = dict.find_first_solution();
-    println!("first solution: {first_solution:#?}");
+    let after_dict_filter = Instant::now();
 
     let best_solution = dict.find_best_solution();
+
+    let after_solve = Instant::now();
+
     println!("best solution: {best_solution:#?}");
+
+    let after_print = Instant::now();
+
+    let dict_load = after_dict_load.duration_since(start);
+    let dict_filter = after_dict_filter.duration_since(after_dict_load);
+    let solve = after_solve.duration_since(after_dict_filter);
+    let print = after_print.duration_since(after_solve);
+    let total = after_print.duration_since(start);
+
+    dbg!(dict_load);
+    dbg!(dict_filter);
+    dbg!(solve);
+    dbg!(print);
+    dbg!(total);
 }
 
 fn load_dictionary() -> Vec<&'static str> {
@@ -61,6 +97,7 @@ impl Dictionary {
 
     /// Returns the first solution in the dictionary.
     /// The solution is probably not minimal, but will contain no fully unnecessary words.
+    #[allow(unused)]
     fn find_first_solution(&self) -> Vec<&'static str> {
         // a bool grid matching the input shape,
         // tracking whether each character has been used
@@ -100,11 +137,11 @@ impl Dictionary {
         solution
     }
 
-    /// Returns the first optimal solution found using backtracking & heuristics.
+    /// Returns the first minimal solution found using breadth-first-search & heuristics.
+    /// If there is no minimal solution, then returns one of the best ones.
     fn find_best_solution(&self) -> Vec<&'static str> {
-        let optimal_solution_size = self.columns.iter().map(|c| c.len()).max().unwrap();
-        let input_col_lens: Vec<_> = self.columns.iter().map(|c| c.len()).collect();
-        let mut partial_solutions = vec![PartialSolution::new(self, &input_col_lens)];
+        let optimal_solution_size = self.columns.iter().map(Vec::len).max().unwrap();
+        let mut partial_solutions = vec![PartialSolution::new(self)];
         let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = BTreeSet::new();
 
         let mut partial_solutions_touched = 0;
@@ -124,7 +161,6 @@ impl Dictionary {
             }
 
             let mut next_words = partial_solution.next_words();
-
             while let Some(next_word) = next_words.pop() {
                 let mut partial_solution = partial_solution.clone();
 
@@ -138,14 +174,23 @@ impl Dictionary {
             }
         }
 
+        dbg!(partial_solutions_touched);
+
         let smallest = complete_solutions
-            .into_iter()
+            .iter()
             .min_by_key(|set| set.len())
             .unwrap();
 
-        dbg!(partial_solutions_touched);
+        let minimum_size = smallest.len();
 
-        Vec::from_iter(smallest.into_iter())
+        let all_smallest: BTreeSet<_> = complete_solutions
+            .into_iter()
+            .filter(|sol| sol.len() == minimum_size)
+            .collect();
+
+        dbg!(&all_smallest);
+
+        Vec::from_iter(all_smallest.first().unwrap().into_iter().map(|s| *s))
     }
 }
 
@@ -171,10 +216,9 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
 }
 
 impl<'a> PartialSolution<'a> {
-    fn new(dict: &'a Dictionary, input_col_lens: &[usize]) -> Self {
-        let input_cols = input_col_lens.len();
+    fn new(dict: &'a Dictionary) -> Self {
         let char_usages: Vec<BTreeMap<char, usize>> =
-            (0..input_cols).map(|_| Default::default()).collect();
+            dict.columns.iter().map(|_| Default::default()).collect();
 
         Self {
             dict,
@@ -207,6 +251,7 @@ impl<'a> PartialSolution<'a> {
             .rev()
             .take_while(|(_word, score)| *score == max_score)
             .map(|(word, _score)| word)
+            .filter(|word| !self.trimmed_words.contains(word))
             .collect();
     }
 

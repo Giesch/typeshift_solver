@@ -4,18 +4,15 @@ use std::time::Instant;
 // TODO
 // improve next_words ranking heuristics (rare letters?)
 // rank partial solutions somehow, and use a priority queue instead of BFS
-// look for more trimming improvements
-// include a filtered 5-letter dictionary as straight bytes
-//   also index it ahead of time somehow?
 // do real benchmark testing; maybe switch to snapshots for unit tests
 // try preserving & updating ranking state/index instead of reranking
 
 fn main() {
     let start = Instant::now();
 
-    let words = load_dictionary();
     let input = include_str!("../files/puzzle-11-17-2023.txt");
     let columns = into_columns(input);
+    let words = unsafe { load_index() };
     let after_load = Instant::now();
 
     let typeshift = Typeshift::new(columns, words);
@@ -34,13 +31,11 @@ fn main() {
     dbg!(total);
 }
 
-fn load_dictionary() -> Vec<&'static str> {
-    let file = include_str!("../files/wordlist-20210729.txt");
+unsafe fn load_index() -> Vec<&'static str> {
+    let bytes = include_bytes!("../files/index.dat");
+    let words = std::str::from_utf8_unchecked(bytes);
 
-    file.lines()
-        .map(|l| l.strip_prefix('"').unwrap())
-        .map(|l| l.strip_suffix('"').unwrap())
-        .collect()
+    words.lines().collect()
 }
 
 /// An unsolved Typeshift puzzle
@@ -169,20 +164,7 @@ impl<'a> PartialSolution<'a> {
     /// Ranks all untrimmed words, and returns all tied for best.
     /// Returns an emtpy Vec if this solution should be abandoned.
     fn next_words(&mut self) -> Vec<&'static str> {
-        let mut ranked_words = Vec::new();
-        for &word in &self.typeshift.words {
-            let mut score: usize = 0;
-            for (col, ch) in word.chars().enumerate() {
-                let usages = *self.char_usages[col].get(&ch).unwrap_or(&0);
-                if usages == 0 {
-                    score += 1;
-                }
-            }
-
-            ranked_words.push((word, score));
-        }
-
-        ranked_words.sort_by_key(|(_word, score)| *score);
+        let ranked_words = self.rank_words();
         let max_score = ranked_words.last().unwrap().1;
 
         return ranked_words
@@ -197,6 +179,25 @@ impl<'a> PartialSolution<'a> {
             .collect();
     }
 
+    fn rank_words(&self) -> Vec<(&'static str, usize)> {
+        let mut ranked_words = Vec::new();
+        for &word in &self.typeshift.words {
+            let mut score: usize = 0;
+            for (col, ch) in word.chars().enumerate() {
+                let usages = *self.char_usages[col].get(&ch).unwrap_or(&0);
+                if usages == 0 {
+                    score += 1;
+                }
+            }
+
+            ranked_words.push((word, score));
+        }
+
+        ranked_words.sort_by_key(|(_word, score)| *score);
+
+        ranked_words
+    }
+
     fn add_word(&mut self, word: &'static str) {
         debug_assert!(!self.trimmed_words.contains(word));
 
@@ -208,11 +209,11 @@ impl<'a> PartialSolution<'a> {
         self.used_words.insert(word);
     }
 
-    fn solved(&mut self) -> bool {
+    fn solved(&self) -> bool {
         for (col, col_chars) in self.typeshift.columns.iter().enumerate() {
-            let usages = &mut self.char_usages[col];
+            let usages = &self.char_usages[col];
             for &ch in col_chars {
-                let count = *usages.entry(ch).or_default();
+                let count = *usages.get(&ch).unwrap_or(&0);
                 if count == 0 {
                     return false;
                 }
@@ -253,12 +254,21 @@ mod tests {
         test_input(input, expected_solution, max_steps);
     }
 
+    #[test]
+    fn nov_18_2023() {
+        let input = include_str!("../files/puzzle-11-18-2023.txt");
+        let expected_solution = ["backup", "fridge", "heists", "lender"];
+        let max_steps = 60;
+
+        test_input(input, expected_solution, max_steps);
+    }
+
     fn test_input(
         input: &str,
         expected_solution: impl Into<BTreeSet<&'static str>>,
         max_steps: usize,
     ) {
-        let words = load_dictionary();
+        let words = unsafe { load_index() };
         let columns = into_columns(input);
 
         let typeshift = Typeshift::new(columns, words);

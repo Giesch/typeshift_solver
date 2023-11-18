@@ -2,5 +2,14 @@
 name = "typeshift_solver"
 version = "0.1.0"
 edition = "2021"
+default-run = "typeshift_solver"
+
+[[bin]]
+name = "typeshift_solver"
+path = "src/main.rs"
+
+[[bin]]
+name = "index"
+path = "src/bin/index.rs"
 
 [dependencies]

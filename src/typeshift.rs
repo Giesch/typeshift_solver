@@ -31,6 +31,11 @@ impl Typeshift {
         Self { columns, words }
     }
 
+    /// The number of possible words (and size of the solution space)
+    pub fn size(&self) -> usize {
+        self.words.len()
+    }
+
     /// Returns the first minimal solution found,
     /// and the number of intermediate partial solutions touched along the way.
     /// Uses DFS while there are completely unused words remaining, and BFS afterwards.
@@ -61,12 +66,11 @@ impl Typeshift {
                 let mut partial_solution = partial_solution.clone();
 
                 partial_solution.add_word(next_word);
-
                 for remaining_word in &next_words {
                     partial_solution.trimmed_words.insert(remaining_word);
                 }
 
-                if all_letters_used {
+                if partial_solution.solved() || all_letters_used {
                     partial_solutions.push_front(partial_solution);
                 } else {
                     partial_solutions.push_back(partial_solution);
@@ -109,6 +113,7 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
             .field("used_words", &self.used_words)
             .field("char_usages", &self.char_usages)
             .field("trimmed_words", &self.trimmed_words)
+            .field("typeshift.size", &self.typeshift.size())
             .finish()
     }
 }
@@ -183,10 +188,10 @@ impl<'a> PartialSolution<'a> {
     }
 
     fn solved(&self) -> bool {
-        for (col, col_chars) in self.typeshift.columns.iter().enumerate() {
-            let usages = &self.char_usages[col];
-            for &ch in col_chars {
-                let count = *usages.get(&ch).unwrap_or(&0);
+        for (i, chars) in self.typeshift.columns.iter().enumerate() {
+            let usages = &self.char_usages[i];
+            for ch in chars {
+                let count = *usages.get(ch).unwrap_or(&0);
                 if count == 0 {
                     return false;
                 }
@@ -214,7 +219,7 @@ mod tests {
     fn nov_16_2023() {
         let input = include_str!("../files/puzzle-11-16-2023.txt");
         let expected_solution = ["above", "basic", "steel", "study", "whups"];
-        let expected_steps = 274;
+        let expected_steps = 10;
 
         test_input(input, expected_solution, expected_steps);
     }
@@ -223,7 +228,7 @@ mod tests {
     fn nov_17_2023() {
         let input = include_str!("../files/puzzle-11-17-2023.txt");
         let expected_solution = ["again", "gater", "mouth", "quick", "woods"];
-        let expected_steps = 1019;
+        let expected_steps = 113;
 
         test_input(input, expected_solution, expected_steps);
     }
@@ -232,7 +237,7 @@ mod tests {
     fn nov_18_2023() {
         let input = include_str!("../files/puzzle-11-18-2023.txt");
         let expected_solution = ["backup", "fridge", "heists", "lender"];
-        let expected_steps = 150;
+        let expected_steps = 100;
 
         test_input(input, expected_solution, expected_steps);
     }

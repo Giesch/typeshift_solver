@@ -17,6 +17,7 @@ fn main() {
     let after_load = Instant::now();
 
     let typeshift = Typeshift::new(columns, words);
+    dbg!(typeshift.size());
     let (solution, steps) = typeshift.find_best_solution();
     let after_solve = Instant::now();
 

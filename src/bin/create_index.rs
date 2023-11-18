@@ -4,7 +4,7 @@ use std::io::{BufWriter, Write};
 use typeshift_solver::*;
 
 fn main() {
-    let bytes = create_index();
+    let bytes = index::create();
 
     let file = File::create("./files/index.dat").unwrap();
     let mut file = BufWriter::new(file);

@@ -9,7 +9,7 @@ name = "typeshift_solver"
 path = "src/main.rs"
 
 [[bin]]
-name = "create_index"
-path = "src/bin/create_index.rs"
+name = "create_dict"
+path = "src/bin/create_dict.rs"
 
 [dependencies]

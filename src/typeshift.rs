@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+use crate::dict::DICT;
+
 /// An unsolved Typeshift puzzle
 #[derive(Debug)]
 pub struct Typeshift {
@@ -11,15 +13,19 @@ pub struct Typeshift {
 }
 
 impl Typeshift {
-    /// Returns a new filtered dictionary from a puzzle input and the loaded full-size dictionary.
+    /// Returns a new filtered dictionary from a puzzle input.
     /// Includes only (and all) words that can be made with the puzzle input columns.
-    pub fn new(columns: Vec<BTreeSet<char>>, words: Vec<&'static str>) -> Self {
-        let words: Vec<&'static str> = words
+    /// Expects input as a rotated or inverted set of lines:
+    /// The leftmost column of the puzzle should be the first line of input.
+    pub fn new(input: &str) -> Self {
+        let columns: Vec<BTreeSet<char>> = input.lines().map(|l| l.chars().collect()).collect();
+
+        let words: Vec<&'static str> = DICT
             .iter()
             .filter(|&word| word.len() == columns.len())
             .filter_map(|word| {
                 for (i, word_ch) in word.char_indices() {
-                    if !columns[i].iter().any(|&ch| ch == word_ch) {
+                    if !columns[i].contains(&word_ch) {
                         return None;
                     }
                 }
@@ -40,6 +46,7 @@ impl Typeshift {
     /// and the number of intermediate partial solutions touched along the way.
     /// Uses DFS while there are completely unused words remaining, and BFS afterwards.
     pub fn find_best_solution(&self) -> (BTreeSet<&'static str>, usize) {
+        // the longest column determines the minimal solution
         let optimal_solution_size = self.columns.iter().map(|c| c.len()).max().unwrap();
 
         let mut steps: usize = 0;
@@ -202,16 +209,9 @@ impl<'a> PartialSolution<'a> {
     }
 }
 
-/// Converts an input file of a rotated/inverted typeshift
-/// into a char table to be solved.
-pub fn into_columns(input: &str) -> Vec<BTreeSet<char>> {
-    input.lines().map(|l| l.chars().collect()).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::index;
 
     use std::collections::BTreeSet;
 
@@ -247,10 +247,7 @@ mod tests {
         expected_solution: impl Into<BTreeSet<&'static str>>,
         expected_steps: usize,
     ) {
-        let words = unsafe { index::load() };
-        let columns = into_columns(input);
-
-        let typeshift = Typeshift::new(columns, words);
+        let typeshift = Typeshift::new(input);
         let (solution, steps) = typeshift.find_best_solution();
 
         assert_eq!(steps, expected_steps);

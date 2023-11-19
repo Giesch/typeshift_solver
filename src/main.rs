@@ -3,15 +3,16 @@ use std::time::Instant;
 use typeshift_solver::*;
 
 // TODO
+// fix trimming; this doesn't actually find all solutions
+// rank partial solutions in a smarter way (number of overlaps?)
 // improve next_words ranking heuristics (rare letters?)
 // do real benchmark testing; maybe switch to snapshots for unit tests
 // try preserving & updating ranking state/index instead of reranking
-// rank partial solutions in a smarter way
 
 fn main() {
     let start = Instant::now();
 
-    let input = include_str!("../files/puzzle-11-17-2023.txt");
+    let input = include_str!("../files/puzzles/2023-11-19.txt");
     let typeshift = Typeshift::new(input);
     dbg!(typeshift.size());
 

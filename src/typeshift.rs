@@ -217,29 +217,38 @@ mod tests {
 
     #[test]
     fn nov_16_2023() {
-        let input = include_str!("../files/puzzle-11-16-2023.txt");
-        let expected_solution = ["above", "basic", "steel", "study", "whups"];
-        let expected_steps = 10;
+        let input = include_str!("../files/puzzles/2023-11-16.txt");
+        let solution = ["above", "basic", "steel", "study", "whups"];
+        let steps = 10;
 
-        test_input(input, expected_solution, expected_steps);
+        test_input(input, solution, steps);
     }
 
     #[test]
     fn nov_17_2023() {
-        let input = include_str!("../files/puzzle-11-17-2023.txt");
-        let expected_solution = ["again", "gater", "mouth", "quick", "woods"];
-        let expected_steps = 113;
+        let input = include_str!("../files/puzzles/2023-11-17.txt");
+        let solution = ["again", "gater", "mouth", "quick", "woods"];
+        let steps = 113;
 
-        test_input(input, expected_solution, expected_steps);
+        test_input(input, solution, steps);
     }
 
     #[test]
     fn nov_18_2023() {
-        let input = include_str!("../files/puzzle-11-18-2023.txt");
-        let expected_solution = ["backup", "fridge", "heists", "lender"];
-        let expected_steps = 100;
+        let input = include_str!("../files/puzzles/2023-11-18.txt");
+        let solution = ["backup", "fridge", "heists", "lender"];
+        let steps = 100;
 
-        test_input(input, expected_solution, expected_steps);
+        test_input(input, solution, steps);
+    }
+
+    #[test]
+    fn nov_19_2023() {
+        let input = include_str!("../files/puzzles/2023-11-19.txt");
+        let solution = ["chumps", "corves", "fifers", "granny", "poiser"];
+        let steps = 439;
+
+        test_input(input, solution, steps);
     }
 
     fn test_input(

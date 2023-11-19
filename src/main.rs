@@ -3,10 +3,9 @@ use std::time::Instant;
 use typeshift_solver::*;
 
 // TODO
-// rank partial solutions in a smarter way (number of overlaps?)
 // improve next_words ranking heuristics (rare letters?)
-// do real benchmark testing; maybe switch to snapshots for unit tests
-// try preserving & updating ranking state/index instead of reranking
+// do real benchmark testing
+// use snapshot testing library for unit tests
 
 fn main() {
     let start = Instant::now();

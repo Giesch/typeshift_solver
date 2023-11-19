@@ -1,4 +1,5 @@
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::cmp::{Ordering, Reverse};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 
 use crate::dict::DICT;
 
@@ -44,22 +45,21 @@ impl Typeshift {
 
     /// Returns the first minimal solution found,
     /// and the number of intermediate partial solutions touched along the way.
-    /// Uses DFS while there are completely unused words remaining, and BFS afterwards.
     pub fn find_best_solution(&self) -> (BTreeSet<&'static str>, usize) {
-        // the longest column determines the minimal solution
-        let optimal_solution_size = self.columns.iter().map(|c| c.len()).max().unwrap();
+        let minimum_words = self.columns.iter().map(|c| c.len()).max().unwrap();
 
         let mut steps: usize = 0;
-        let mut partial_solutions = VecDeque::from_iter([PartialSolution::new(self)]);
+        let mut ranked_solutions =
+            BinaryHeap::from_iter([RankedSolution(PartialSolution::new(self))]);
         let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = Default::default();
         let mut attempted_solutions: BTreeSet<BTreeSet<&'static str>> = Default::default();
 
-        while let Some(mut partial_solution) = partial_solutions.pop_front() {
+        while let Some(RankedSolution(mut partial_solution)) = ranked_solutions.pop() {
             steps += 1;
 
             if partial_solution.solved() {
                 let words = partial_solution.used_words;
-                if words.len() == optimal_solution_size {
+                if words.len() == minimum_words {
                     // NOTE comment this out to find & log all minimal solutions
                     return (words, steps);
                 }
@@ -68,8 +68,7 @@ impl Typeshift {
                 continue;
             }
 
-            let (mut next_words, score) = partial_solution.next_words();
-            let all_letters_used = score == self.columns.len();
+            let mut next_words = partial_solution.next_words();
             while let Some(next_word) = next_words.pop() {
                 let mut partial_solution = partial_solution.clone();
 
@@ -78,11 +77,7 @@ impl Typeshift {
                     continue;
                 }
 
-                if partial_solution.solved() || all_letters_used {
-                    partial_solutions.push_front(partial_solution);
-                } else {
-                    partial_solutions.push_back(partial_solution);
-                }
+                ranked_solutions.push(RankedSolution(partial_solution));
             }
 
             attempted_solutions.insert(partial_solution.used_words);
@@ -104,6 +99,38 @@ impl Typeshift {
         (all_smallest.pop_first().unwrap(), steps)
     }
 }
+
+struct RankedSolution<'a>(PartialSolution<'a>);
+
+impl<'a> RankedSolution<'a> {
+    fn rank_tuple(&self) -> (bool, Reverse<usize>, usize) {
+        (
+            self.0.solved(),            // a finished solution comes first
+            Reverse(self.0.overlaps()), // more efficient solutions rank more highly
+            self.0.used_words.len(),    // efficient solutions closer to completion rank more highly
+        )
+    }
+}
+
+impl<'a> Ord for RankedSolution<'a> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.rank_tuple().cmp(&other.rank_tuple())
+    }
+}
+
+impl<'a> PartialOrd for RankedSolution<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> PartialEq for RankedSolution<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.rank_tuple().eq(&other.rank_tuple())
+    }
+}
+
+impl<'a> Eq for RankedSolution<'a> {}
 
 #[derive(Clone)]
 struct PartialSolution<'a> {
@@ -141,19 +168,16 @@ impl<'a> PartialSolution<'a> {
     }
 
     /// Ranks all words, and returns all tied for best.
-    /// Returns an emtpy Vec if this solution should be abandoned.
-    fn next_words(&mut self) -> (Vec<&'static str>, usize) {
+    fn next_words(&mut self) -> Vec<&'static str> {
         let ranked_words = self.rank_words();
         let max_score = ranked_words.last().unwrap().1;
 
-        let max_score_words = ranked_words
+        ranked_words
             .into_iter()
             .rev()
             .take_while(|(_word, score)| *score == max_score)
             .map(|(word, _score)| word)
-            .collect();
-
-        (max_score_words, max_score)
+            .collect()
     }
 
     /// Score and sort all possible words in the typeshift
@@ -200,6 +224,21 @@ impl<'a> PartialSolution<'a> {
 
         true
     }
+
+    fn overlaps(&self) -> usize {
+        let mut overlaps: usize = 0;
+
+        for (i, chars) in self.typeshift.columns.iter().enumerate() {
+            let usages = &self.char_usages[i];
+            for ch in chars {
+                if matches!(usages.get(ch), Some(&count) if count > 1) {
+                    overlaps += 1
+                }
+            }
+        }
+
+        overlaps
+    }
 }
 
 #[cfg(test)]
@@ -212,7 +251,7 @@ mod tests {
     fn nov_16_2023() {
         let input = include_str!("../files/puzzles/2023-11-16.txt");
         let solution = ["above", "basic", "steel", "study", "whups"];
-        let steps = 10;
+        let steps = 63;
 
         test_input(input, solution, steps);
     }
@@ -221,7 +260,7 @@ mod tests {
     fn nov_17_2023() {
         let input = include_str!("../files/puzzles/2023-11-17.txt");
         let solution = ["again", "gater", "mouth", "quick", "woods"];
-        let steps = 113;
+        let steps = 51;
 
         test_input(input, solution, steps);
     }
@@ -230,7 +269,7 @@ mod tests {
     fn nov_18_2023() {
         let input = include_str!("../files/puzzles/2023-11-18.txt");
         let solution = ["backup", "fridge", "heists", "lender"];
-        let steps = 100;
+        let steps = 73;
 
         test_input(input, solution, steps);
     }
@@ -239,7 +278,7 @@ mod tests {
     fn nov_19_2023() {
         let input = include_str!("../files/puzzles/2023-11-19.txt");
         let solution = ["chumps", "corves", "fifers", "granny", "poiser"];
-        let steps = 456;
+        let steps = 304;
 
         test_input(input, solution, steps);
     }

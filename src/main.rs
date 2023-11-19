@@ -3,7 +3,6 @@ use std::time::Instant;
 use typeshift_solver::*;
 
 // TODO
-// fix trimming; this doesn't actually find all solutions
 // rank partial solutions in a smarter way (number of overlaps?)
 // improve next_words ranking heuristics (rare letters?)
 // do real benchmark testing; maybe switch to snapshots for unit tests

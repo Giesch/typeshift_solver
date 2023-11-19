@@ -51,7 +51,8 @@ impl Typeshift {
 
         let mut steps: usize = 0;
         let mut partial_solutions = VecDeque::from_iter([PartialSolution::new(self)]);
-        let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = BTreeSet::new();
+        let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = Default::default();
+        let mut attempted_solutions: BTreeSet<BTreeSet<&'static str>> = Default::default();
 
         while let Some(mut partial_solution) = partial_solutions.pop_front() {
             steps += 1;
@@ -73,8 +74,8 @@ impl Typeshift {
                 let mut partial_solution = partial_solution.clone();
 
                 partial_solution.add_word(next_word);
-                for remaining_word in &next_words {
-                    partial_solution.trimmed_words.insert(remaining_word);
+                if attempted_solutions.contains(&partial_solution.used_words) {
+                    continue;
                 }
 
                 if partial_solution.solved() || all_letters_used {
@@ -83,6 +84,8 @@ impl Typeshift {
                     partial_solutions.push_back(partial_solution);
                 }
             }
+
+            attempted_solutions.insert(partial_solution.used_words);
         }
 
         let minimum_size = complete_solutions
@@ -109,8 +112,6 @@ struct PartialSolution<'a> {
     used_words: BTreeSet<&'static str>,
     /// the current total usages of a positional character from the input grid
     char_usages: Vec<BTreeMap<char, usize>>,
-    /// the words we should ignore, because they're in a sibling solution
-    trimmed_words: BTreeSet<&'static str>,
 }
 
 // deliberately omitting the word list just to make output shorter
@@ -119,7 +120,6 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
         f.debug_struct("PartialSolution")
             .field("used_words", &self.used_words)
             .field("char_usages", &self.char_usages)
-            .field("trimmed_words", &self.trimmed_words)
             .field("typeshift.size", &self.typeshift.size())
             .finish()
     }
@@ -137,11 +137,10 @@ impl<'a> PartialSolution<'a> {
             typeshift,
             used_words: Default::default(),
             char_usages,
-            trimmed_words: Default::default(),
         }
     }
 
-    /// Ranks all untrimmed words, and returns all tied for best.
+    /// Ranks all words, and returns all tied for best.
     /// Returns an emtpy Vec if this solution should be abandoned.
     fn next_words(&mut self) -> (Vec<&'static str>, usize) {
         let ranked_words = self.rank_words();
@@ -152,10 +151,6 @@ impl<'a> PartialSolution<'a> {
             .rev()
             .take_while(|(_word, score)| *score == max_score)
             .map(|(word, _score)| word)
-            // NOTE it's important to do this after scoring, instead of before;
-            // this leads to better trimming by returning an empty vec
-            // if the best next_words vec is in a sibling solution
-            .filter(|word| !self.trimmed_words.contains(word))
             .collect();
 
         (max_score_words, max_score)
@@ -184,8 +179,6 @@ impl<'a> PartialSolution<'a> {
     }
 
     fn add_word(&mut self, word: &'static str) {
-        debug_assert!(!self.trimmed_words.contains(word));
-
         for (col, word_ch) in word.char_indices() {
             let entry = self.char_usages[col].entry(word_ch).or_default();
             *entry += 1;
@@ -246,7 +239,7 @@ mod tests {
     fn nov_19_2023() {
         let input = include_str!("../files/puzzles/2023-11-19.txt");
         let solution = ["chumps", "corves", "fifers", "granny", "poiser"];
-        let steps = 439;
+        let steps = 456;
 
         test_input(input, solution, steps);
     }

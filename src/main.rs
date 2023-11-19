@@ -2,9 +2,7 @@ use std::time::Instant;
 
 use typeshift_solver::*;
 
-// TODO
-// improve next_words ranking heuristics (rare letters?)
-// do real benchmark testing
+// TODO add real benchmark testing
 
 fn main() {
     let start = Instant::now();

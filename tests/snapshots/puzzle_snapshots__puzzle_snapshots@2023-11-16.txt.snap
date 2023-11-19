@@ -12,11 +12,11 @@ info:
 input_file: files/puzzles/2023-11-16.txt
 ---
 size: 31
-steps: 63
+steps: 8
 solution:
   - above
   - basic
-  - steel
   - study
+  - wheel
   - whups
 

@@ -12,7 +12,7 @@ info:
 input_file: files/puzzles/2023-11-17.txt
 ---
 size: 60
-steps: 51
+steps: 11
 solution:
   - again
   - gater

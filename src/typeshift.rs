@@ -9,8 +9,12 @@ pub struct Typeshift {
     /// The rotated or inverted puzzle input columns
     /// eg, the first inner set of this would be the leftmost column of the puzzle
     columns: Vec<BTreeSet<char>>,
-    /// A dictionary of usable words, reduced to match the input
+
+    /// A dictionary of usable words, reduced to only words spellable from the input
     words: Vec<&'static str>,
+
+    /// The total frequencies of characters in the reduced problem dictionary
+    char_freqs: BTreeMap<char, usize>,
 }
 
 impl Typeshift {
@@ -35,7 +39,19 @@ impl Typeshift {
             })
             .collect();
 
-        Self { columns, words }
+        let mut char_freqs: BTreeMap<char, usize> = Default::default();
+        for word in &words {
+            for ch in word.chars() {
+                let entry = char_freqs.entry(ch).or_default();
+                *entry += 1;
+            }
+        }
+
+        Self {
+            columns,
+            words,
+            char_freqs,
+        }
     }
 
     /// The number of possible words (and size of the solution space)
@@ -170,34 +186,41 @@ impl<'a> PartialSolution<'a> {
     /// Ranks all words, and returns all tied for best.
     fn next_words(&mut self) -> Vec<&'static str> {
         let ranked_words = self.rank_words();
-        let max_score = ranked_words.last().unwrap().1;
+        let best_rank = ranked_words.first().unwrap().1;
 
         ranked_words
             .into_iter()
-            .rev()
-            .take_while(|(_word, score)| *score == max_score)
-            .map(|(word, _score)| word)
+            .take_while(|(_word, rank)| *rank == best_rank)
+            .map(|(word, _rank)| word)
             .collect()
     }
 
-    /// Score and sort all possible words in the typeshift
-    /// by how many unused characters they would use,
-    /// in ascending order (worst first)
-    fn rank_words(&self) -> Vec<(&'static str, usize)> {
+    /// Rank and sort all possible words in the typeshift (best first),
+    /// by how many unused characters they would use (descending),
+    /// and the rarity of their rarest letter (ascending)
+    fn rank_words(&self) -> Vec<(&'static str, (Reverse<usize>, usize))> {
         let mut ranked_words = Vec::new();
         for &word in &self.typeshift.words {
-            let mut score: usize = 0;
+            let mut new_letters: usize = 0;
+            let mut best_rarity: usize = usize::MAX;
             for (col, ch) in word.chars().enumerate() {
                 let usages = *self.char_usages[col].get(&ch).unwrap_or(&0);
                 if usages == 0 {
-                    score += 1;
+                    new_letters += 1;
+                }
+
+                let rarity = *self.typeshift.char_freqs.get(&ch).unwrap();
+                if rarity < best_rarity {
+                    best_rarity = rarity;
                 }
             }
 
-            ranked_words.push((word, score));
+            let rank = (Reverse(new_letters), best_rarity);
+
+            ranked_words.push((word, rank));
         }
 
-        ranked_words.sort_by_key(|(_word, score)| *score);
+        ranked_words.sort_by_key(|(_word, rank)| *rank);
 
         ranked_words
     }
@@ -232,7 +255,7 @@ impl<'a> PartialSolution<'a> {
             let usages = &self.char_usages[i];
             for ch in chars {
                 if matches!(usages.get(ch), Some(&count) if count > 1) {
-                    overlaps += 1
+                    overlaps += 1;
                 }
             }
         }
@@ -247,23 +270,22 @@ mod tests {
 
     use std::collections::BTreeSet;
 
-    /// a small input; this one was previously faster,
-    /// but that might depend on brittle changes
+    /// a small input that should stay fast
     #[test]
     fn small_example() {
         let input = include_str!("../files/puzzles/2023-11-16.txt");
-        let solution = ["above", "basic", "steel", "study", "whups"];
-        let steps = 63;
+        let solution = ["above", "basic", "study", "wheel", "whups"];
+        let steps = 8;
 
         test_input(input, solution, steps);
     }
 
-    /// the largest input so far
+    /// the largest input and slowest puzzle so far
     #[test]
     fn large_example() {
         let input = include_str!("../files/puzzles/2023-11-19.txt");
         let solution = ["chumps", "corves", "fifers", "granny", "poiser"];
-        let steps = 304;
+        let steps = 67;
 
         test_input(input, solution, steps);
     }

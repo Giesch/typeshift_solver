@@ -13,7 +13,7 @@ info:
 input_file: files/puzzles/2023-11-19.txt
 ---
 size: 70
-steps: 304
+steps: 67
 solution:
   - chumps
   - corves

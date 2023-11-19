@@ -27,16 +27,13 @@ impl Typeshift {
 
         let words: Vec<&'static str> = DICT
             .iter()
-            .filter(|&word| word.len() == columns.len())
-            .filter_map(|word| {
-                for (i, word_ch) in word.char_indices() {
-                    if !columns[i].contains(&word_ch) {
-                        return None;
-                    }
-                }
-
-                Some(*word)
+            .filter(|word| word.len() == columns.len())
+            .filter(|word| {
+                word.chars()
+                    .zip(columns.iter())
+                    .all(|(ch, col)| col.contains(&ch))
             })
+            .map(|word| *word)
             .collect();
 
         let mut char_freqs: BTreeMap<char, usize> = Default::default();
@@ -116,10 +113,12 @@ impl Typeshift {
     }
 }
 
+/// A sortable wrapper for comparing the quality of partial solutions
 struct RankedSolution<'a>(PartialSolution<'a>);
 
 impl<'a> RankedSolution<'a> {
-    fn rank_tuple(&self) -> (bool, Reverse<usize>, usize) {
+    /// Returns a tuple for sorting solutions by priority when solving
+    fn rank(&self) -> (bool, Reverse<usize>, usize) {
         (
             self.0.solved(),            // a finished solution comes first
             Reverse(self.0.overlaps()), // more efficient solutions rank more highly
@@ -130,7 +129,7 @@ impl<'a> RankedSolution<'a> {
 
 impl<'a> Ord for RankedSolution<'a> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.rank_tuple().cmp(&other.rank_tuple())
+        self.rank().cmp(&other.rank())
     }
 }
 
@@ -142,7 +141,7 @@ impl<'a> PartialOrd for RankedSolution<'a> {
 
 impl<'a> PartialEq for RankedSolution<'a> {
     fn eq(&self, other: &Self) -> bool {
-        self.rank_tuple().eq(&other.rank_tuple())
+        self.rank().eq(&other.rank())
     }
 }
 
@@ -151,9 +150,11 @@ impl<'a> Eq for RankedSolution<'a> {}
 #[derive(Clone)]
 struct PartialSolution<'a> {
     typeshift: &'a Typeshift,
-    /// the words in the solution so far
+    /// The words in the solution so far
     used_words: BTreeSet<&'static str>,
-    /// the current total usages of a positional character from the input grid
+
+    /// The current total usages of a positional character from the input grid
+    /// A count of 0 is guaranteed to be present for unused characters in the column.
     char_usages: Vec<BTreeMap<char, usize>>,
 }
 
@@ -163,7 +164,6 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
         f.debug_struct("PartialSolution")
             .field("used_words", &self.used_words)
             .field("char_usages", &self.char_usages)
-            .field("typeshift.size", &self.typeshift.size())
             .finish()
     }
 }
@@ -173,7 +173,7 @@ impl<'a> PartialSolution<'a> {
         let char_usages: Vec<BTreeMap<char, usize>> = typeshift
             .columns
             .iter()
-            .map(|_| Default::default())
+            .map(|col| BTreeMap::from_iter(col.iter().map(|ch| (*ch, 0))))
             .collect();
 
         Self {
@@ -195,27 +195,32 @@ impl<'a> PartialSolution<'a> {
             .collect()
     }
 
-    /// Rank and sort all possible words in the typeshift (best first),
-    /// by how many unused characters they would use (descending),
-    /// and the rarity of their rarest letter (ascending)
+    /// Rank all possible words for usage as the next word in the solution (best first),
+    /// by how many unused characters they would use,
+    /// and the rarity of their rarest letter.
     fn rank_words(&self) -> Vec<(&'static str, (Reverse<usize>, usize))> {
         let mut ranked_words = Vec::new();
         for &word in &self.typeshift.words {
-            let mut new_letters: usize = 0;
-            let mut best_rarity: usize = usize::MAX;
-            for (col, ch) in word.chars().enumerate() {
-                let usages = *self.char_usages[col].get(&ch).unwrap_or(&0);
-                if usages == 0 {
-                    new_letters += 1;
-                }
+            // the number of unused letters the word would use
+            let new_letters = word
+                .chars()
+                .zip(self.char_usages.iter())
+                .map(|(ch, usages)| *usages.get(&ch).unwrap())
+                .filter(|&usages| usages == 0)
+                .count();
 
-                let rarity = *self.typeshift.char_freqs.get(&ch).unwrap();
-                if rarity < best_rarity {
-                    best_rarity = rarity;
-                }
-            }
+            // the lowest dict frequency among the letters in the word
+            let min_freq = *word
+                .chars()
+                .map(|ch| self.typeshift.char_freqs.get(&ch).unwrap())
+                .min()
+                .unwrap();
 
-            let rank = (Reverse(new_letters), best_rarity);
+            // lower is better
+            let rank = (
+                Reverse(new_letters), // using more new letters is better
+                min_freq,             // a rarest letter with fewer usages is better
+            );
 
             ranked_words.push((word, rank));
         }
@@ -235,32 +240,18 @@ impl<'a> PartialSolution<'a> {
     }
 
     fn solved(&self) -> bool {
-        for (i, chars) in self.typeshift.columns.iter().enumerate() {
-            let usages = &self.char_usages[i];
-            for ch in chars {
-                let count = *usages.get(ch).unwrap_or(&0);
-                if count == 0 {
-                    return false;
-                }
-            }
-        }
-
-        true
+        self.char_usages
+            .iter()
+            .flat_map(|usages| usages.values())
+            .all(|&count| count > 0)
     }
 
     fn overlaps(&self) -> usize {
-        let mut overlaps: usize = 0;
-
-        for (i, chars) in self.typeshift.columns.iter().enumerate() {
-            let usages = &self.char_usages[i];
-            for ch in chars {
-                if matches!(usages.get(ch), Some(&count) if count > 1) {
-                    overlaps += 1;
-                }
-            }
-        }
-
-        overlaps
+        self.char_usages
+            .iter()
+            .flat_map(|usages| usages.values())
+            .filter(|&&count| count > 1)
+            .count()
     }
 }
 

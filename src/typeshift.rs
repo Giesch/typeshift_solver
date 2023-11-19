@@ -247,8 +247,10 @@ mod tests {
 
     use std::collections::BTreeSet;
 
+    /// a small input; this one was previously faster,
+    /// but that might depend on brittle changes
     #[test]
-    fn nov_16_2023() {
+    fn small_example() {
         let input = include_str!("../files/puzzles/2023-11-16.txt");
         let solution = ["above", "basic", "steel", "study", "whups"];
         let steps = 63;
@@ -256,26 +258,9 @@ mod tests {
         test_input(input, solution, steps);
     }
 
+    /// the largest input so far
     #[test]
-    fn nov_17_2023() {
-        let input = include_str!("../files/puzzles/2023-11-17.txt");
-        let solution = ["again", "gater", "mouth", "quick", "woods"];
-        let steps = 51;
-
-        test_input(input, solution, steps);
-    }
-
-    #[test]
-    fn nov_18_2023() {
-        let input = include_str!("../files/puzzles/2023-11-18.txt");
-        let solution = ["backup", "fridge", "heists", "lender"];
-        let steps = 73;
-
-        test_input(input, solution, steps);
-    }
-
-    #[test]
-    fn nov_19_2023() {
+    fn large_example() {
         let input = include_str!("../files/puzzles/2023-11-19.txt");
         let solution = ["chumps", "corves", "fifers", "granny", "poiser"];
         let steps = 304;

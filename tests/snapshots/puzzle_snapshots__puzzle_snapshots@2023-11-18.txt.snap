@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-18
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - bfhl
+    - rea
+    - inc
+    - skd
+    - tgeu
+    - psre
+input_file: files/puzzles/2023-11-18.txt
+---
+size: 26
+steps: 73
+solution:
+  - backup
+  - fridge
+  - heists
+  - lender
+

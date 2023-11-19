@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-17
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - qagwm
+    - ogau
+    - uaito
+    - idetc
+    - hsnrk
+input_file: files/puzzles/2023-11-17.txt
+---
+size: 60
+steps: 51
+solution:
+  - again
+  - gater
+  - mouth
+  - quick
+  - woods
+

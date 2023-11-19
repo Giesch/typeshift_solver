@@ -5,7 +5,6 @@ use typeshift_solver::*;
 // TODO
 // improve next_words ranking heuristics (rare letters?)
 // do real benchmark testing
-// use snapshot testing library for unit tests
 
 fn main() {
     let start = Instant::now();

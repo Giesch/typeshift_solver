@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-16
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - wsab
+    - hbta
+    - oesu
+    - dpive
+    - lceys
+input_file: files/puzzles/2023-11-16.txt
+---
+size: 31
+steps: 63
+solution:
+  - above
+  - basic
+  - steel
+  - study
+  - whups
+

@@ -1,0 +1,23 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-19
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - pcfg
+    - ihor
+    - riauf
+    - sevmn
+    - rnpe
+    - rsy
+input_file: files/puzzles/2023-11-19.txt
+---
+size: 70
+steps: 304
+solution:
+  - chumps
+  - corves
+  - fifers
+  - granny
+  - poiser
+

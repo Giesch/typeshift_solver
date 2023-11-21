@@ -1,0 +1,23 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-20
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - idtf
+    - elrt
+    - iocl
+    - luwh
+    - deli
+    - ern
+    - ygsd
+input_file: files/puzzles/2023-11-20.txt
+---
+size: 23
+steps: 8
+solution:
+  - deludes
+  - flowery
+  - itching
+  - trilled
+

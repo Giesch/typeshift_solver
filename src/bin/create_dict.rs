@@ -25,7 +25,7 @@ fn main() {
 }
 
 const MIN_WORD_LEN: usize = 4;
-const MAX_WORD_LEN: usize = 6;
+const MAX_WORD_LEN: usize = 7;
 
 const HEADER: &str = r#"//! THIS IS A GENERATED FILE
 //! Do not edit it directly; see src/bin/create_dict.rs

@@ -99,7 +99,7 @@ impl Typeshift {
         let minimum_size = complete_solutions
             .iter()
             .min_by_key(|set| set.len())
-            .unwrap()
+            .expect("no solutions found")
             .len();
 
         let mut all_smallest: BTreeSet<_> = complete_solutions

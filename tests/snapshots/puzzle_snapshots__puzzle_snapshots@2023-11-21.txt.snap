@@ -1,0 +1,21 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-21
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - csb
+    - tcir
+    - lia
+    - fnle
+    - sf
+input_file: files/puzzles/2023-11-21.txt
+---
+size: 18
+steps: 14
+solution:
+  - brans
+  - cills
+  - scaff
+  - sties
+

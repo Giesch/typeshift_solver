@@ -37,11 +37,10 @@ impl Typeshift {
             .collect();
 
         let mut char_freqs: BTreeMap<char, usize> = Default::default();
-        for word in &words {
-            for ch in word.chars() {
-                let entry = char_freqs.entry(ch).or_default();
-                *entry += 1;
-            }
+        let all_chars = words.iter().flat_map(|word| word.chars());
+        for ch in all_chars {
+            let entry = char_freqs.entry(ch).or_default();
+            *entry += 1;
         }
 
         Self {
@@ -118,7 +117,8 @@ struct RankedSolution<'a>(PartialSolution<'a>);
 
 impl<'a> RankedSolution<'a> {
     /// Returns a tuple for sorting solutions by priority when solving
-    fn rank(&self) -> (bool, Reverse<usize>, usize) {
+    /// for use in a max-heap; higher is better
+    fn rank(&self) -> impl Ord + Copy {
         (
             self.0.solved(),            // a finished solution comes first
             Reverse(self.0.overlaps()), // more efficient solutions rank more highly
@@ -198,28 +198,15 @@ impl<'a> PartialSolution<'a> {
     /// Rank all possible words for usage as the next word in the solution (best first),
     /// by how many unused characters they would use,
     /// and the rarity of their rarest letter.
-    fn rank_words(&self) -> Vec<(&'static str, (Reverse<usize>, usize))> {
+    fn rank_words(&self) -> Vec<(&'static str, impl Ord + Copy)> {
         let mut ranked_words = Vec::new();
         for &word in &self.typeshift.words {
-            // the number of unused letters the word would use
-            let new_letters = word
-                .chars()
-                .zip(self.char_usages.iter())
-                .map(|(ch, usages)| *usages.get(&ch).unwrap())
-                .filter(|&usages| usages == 0)
-                .count();
-
-            // the lowest dict frequency among the letters in the word
-            let min_freq = *word
-                .chars()
-                .map(|ch| self.typeshift.char_freqs.get(&ch).unwrap())
-                .min()
-                .unwrap();
-
-            // lower is better
+            // for sorting; lower is better
             let rank = (
-                Reverse(new_letters), // using more new letters is better
-                min_freq,             // a rarest letter with fewer usages is better
+                // using more new letters is better
+                Reverse(self.new_letters(word)),
+                // a rarest letter with fewer usages is better
+                self.min_char_freq(word),
             );
 
             ranked_words.push((word, rank));
@@ -230,6 +217,25 @@ impl<'a> PartialSolution<'a> {
         ranked_words
     }
 
+    /// Returns the number of unused letters the word would use
+    fn new_letters(&self, word: &'static str) -> usize {
+        word.chars()
+            .zip(self.char_usages.iter())
+            .map(|(ch, usages)| *usages.get(&ch).unwrap())
+            .filter(|&usages| usages == 0)
+            .count()
+    }
+
+    /// Returns the lowest dict frequency among the letters in the word
+    fn min_char_freq(&self, word: &'static str) -> usize {
+        *word
+            .chars()
+            .map(|ch| self.typeshift.char_freqs.get(&ch).unwrap())
+            .min()
+            .unwrap()
+    }
+
+    /// Add a word to the solution, updating used character counts
     fn add_word(&mut self, word: &'static str) {
         for (col, word_ch) in word.char_indices() {
             let entry = self.char_usages[col].entry(word_ch).or_default();
@@ -239,6 +245,7 @@ impl<'a> PartialSolution<'a> {
         self.used_words.insert(word);
     }
 
+    /// Returns true if no characters are unused
     fn solved(&self) -> bool {
         self.char_usages
             .iter()
@@ -246,6 +253,7 @@ impl<'a> PartialSolution<'a> {
             .all(|&count| count > 0)
     }
 
+    /// Returns the total characters the solution uses more than once
     fn overlaps(&self) -> usize {
         self.char_usages
             .iter()
@@ -260,6 +268,8 @@ mod tests {
     use super::*;
 
     use std::collections::BTreeSet;
+
+    use pretty_assertions::assert_eq;
 
     /// a small input that should stay fast
     #[test]

@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-22
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - aotef
+    - nxlwr
+    - ign
+    - esl
+    - edtsr
+input_file: files/puzzles/2023-11-22.txt
+---
+size: 35
+steps: 18
+solution:
+  - angle
+  - exist
+  - flied
+  - owner
+  - tries
+

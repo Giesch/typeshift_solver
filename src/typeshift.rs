@@ -3,6 +3,10 @@ use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 
 use crate::dict::DICT;
 
+// This finds the first minimal solution by default.
+// Enable this to find and log the set of all minimal solutions.
+const FIND_ALL_SOLUTIONS: bool = false;
+
 /// An unsolved Typeshift puzzle
 #[derive(Debug)]
 pub struct Typeshift {
@@ -58,26 +62,23 @@ impl Typeshift {
     /// Returns the first minimal solution found,
     /// and the number of intermediate partial solutions touched along the way.
     pub fn find_best_solution(&self) -> (BTreeSet<&'static str>, usize) {
-        let minimum_words = self.columns.iter().map(|c| c.len()).max().unwrap();
-
         let mut steps: usize = 0;
-        let mut ranked_solutions =
-            BinaryHeap::from_iter([RankedSolution(PartialSolution::new(self))]);
-        let mut complete_solutions: BTreeSet<BTreeSet<&'static str>> = Default::default();
-        let mut attempted_solutions: BTreeSet<BTreeSet<&'static str>> = Default::default();
+        let mut to_check = BinaryHeap::from_iter([RankedSolution(PartialSolution::new(self))]);
+        let mut complete: BTreeSet<BTreeSet<&'static str>> = Default::default();
+        let mut attempted: BTreeSet<BTreeSet<&'static str>> = Default::default();
 
-        while let Some(RankedSolution(mut partial_solution)) = ranked_solutions.pop() {
+        while let Some(RankedSolution(mut partial_solution)) = to_check.pop() {
             steps += 1;
 
             if partial_solution.solved() {
                 let words = partial_solution.used_words;
-                if words.len() == minimum_words {
-                    // NOTE comment this out to find & log all minimal solutions
+
+                if FIND_ALL_SOLUTIONS {
+                    complete.insert(BTreeSet::from_iter(words));
+                    continue;
+                } else {
                     return (words, steps);
                 }
-
-                complete_solutions.insert(BTreeSet::from_iter(words));
-                continue;
             }
 
             let mut next_words = partial_solution.next_words();
@@ -85,23 +86,23 @@ impl Typeshift {
                 let mut partial_solution = partial_solution.clone();
 
                 partial_solution.add_word(next_word);
-                if attempted_solutions.contains(&partial_solution.used_words) {
+                if attempted.contains(&partial_solution.used_words) {
                     continue;
                 }
 
-                ranked_solutions.push(RankedSolution(partial_solution));
+                to_check.push(RankedSolution(partial_solution));
             }
 
-            attempted_solutions.insert(partial_solution.used_words);
+            attempted.insert(partial_solution.used_words);
         }
 
-        let minimum_size = complete_solutions
+        let minimum_size = complete
             .iter()
             .min_by_key(|set| set.len())
             .expect("no solutions found")
             .len();
 
-        let mut all_smallest: BTreeSet<_> = complete_solutions
+        let mut all_smallest: BTreeSet<_> = complete
             .into_iter()
             .filter(|sol| sol.len() == minimum_size)
             .collect();
@@ -228,9 +229,8 @@ impl<'a> PartialSolution<'a> {
 
     /// Returns the lowest dict frequency among the letters in the word
     fn min_char_freq(&self, word: &'static str) -> usize {
-        *word
-            .chars()
-            .map(|ch| self.typeshift.char_freqs.get(&ch).unwrap())
+        word.chars()
+            .map(|ch| *self.typeshift.char_freqs.get(&ch).unwrap())
             .min()
             .unwrap()
     }

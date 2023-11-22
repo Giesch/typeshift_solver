@@ -14,8 +14,5 @@ fn main() {
     let time = Instant::now().duration_since(start);
     let size = typeshift.size();
 
-    dbg!(size);
-    dbg!(solution);
-    dbg!(steps);
-    dbg!(time);
+    dbg!(size, solution, steps, time);
 }

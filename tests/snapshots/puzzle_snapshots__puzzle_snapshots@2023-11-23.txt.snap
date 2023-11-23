@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-23
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - rlwap
+    - ioum
+    - mutvo
+    - eats
+    - nsre
+input_file: files/puzzles/2023-11-23.txt
+---
+size: 72
+steps: 37
+solution:
+  - amuse
+  - loots
+  - putts
+  - river
+  - woman
+

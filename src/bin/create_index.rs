@@ -1,8 +1,25 @@
+use std::fs::File;
+use std::io::{BufWriter, Write};
+
+/// Generates an organized/preprocessed version of the wordnik dictionary as a rust module.
+/// This avoids both file IO and string processing in the main binary.
 fn main() {
-    // TODO
-    // write an 'inner index' module with raw constants,
-    // then write a nice-to-use wrapper for it
-    let _index = load_index();
+    let by_len = load_index();
+
+    let mut buf = String::new();
+    for row in by_len {
+        if row.is_empty() {
+            continue;
+        }
+
+        let export = format_index_row(&row);
+        buf.push_str(&export);
+    }
+
+    let file = File::create("./src/index/raw_index.rs").unwrap();
+    let mut file = BufWriter::new(file);
+
+    file.write_all(buf.as_bytes()).unwrap();
 }
 
 fn load_index() -> Vec<Vec<(&'static str, [usize; 26])>> {
@@ -15,12 +32,6 @@ fn load_index() -> Vec<Vec<(&'static str, [usize; 26])>> {
         .map(|word| (word, count_chars(word)))
         .collect();
 
-    // TODO
-    // this 2d vec can't be converted to a static array,
-    // because the inner vecs are of different lengths
-    // is there a good way to normalize them?
-    //   arrays of options of the max len?
-    //   export all 28 individually and have a wrapper module/macro?
     let mut by_len: Vec<Vec<(&'static str, CharCounts)>> = vec![vec![]; 28];
     for (word, counts) in dict {
         let row = &mut by_len[word.len() - 1];
@@ -41,4 +52,23 @@ fn count_chars(word: &'static str) -> CharCounts {
     }
 
     char_freqs
+}
+
+// NOTE panics on empty slice
+fn format_index_row(row: &[(&'static str, CharCounts)]) -> String {
+    let word_len = row[0].0.len();
+    let size = row.len();
+
+    let mut buf = String::new();
+    let decl = format!("pub static INDEX_{word_len}: [(&'static str, [usize; 26]); {size}] = [\n");
+    buf.push_str(&decl);
+
+    for (word, counts) in row {
+        let line = format!("    (\"{word}\", {counts:?}),\n");
+        buf.push_str(&line);
+    }
+
+    buf.push_str("];\n\n");
+
+    buf
 }

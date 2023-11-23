@@ -14,10 +14,9 @@ fn main() {
 
     for (name, input) in puzzles {
         let typeshift = Typeshift::new(&input);
-
         let (_solution, steps) = typeshift.find_best_solution();
-
         let size = typeshift.size();
-        println!("{name}\n  size:  {size}\n  steps: {steps}",);
+
+        println!("{name}\n  size:  {size}\n  steps: {steps}");
     }
 }

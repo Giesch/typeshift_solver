@@ -17,7 +17,7 @@ fn main() {
         let line = format!("    \"{word}\",\n");
         buf.push_str(&line);
     }
-    buf.push_str("];");
+    buf.push_str("];\n");
 
     let file = File::create("./src/dict.rs").unwrap();
     let mut file = BufWriter::new(file);

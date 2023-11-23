@@ -1,3 +1,3 @@
 # Typeshift Solver
 
-If you want to cheat at [Typeshift](http://www.playtypeshift.com) (maybe on [Puzzmo](https://www.puzzmo.com)), it is possible to use this to cheat at Typeshift.
+This is a solver for the word game [Typeshift](http://www.playtypeshift.com), which you can play at [Puzzmo](https://www.puzzmo.com). It's mostly an exercise in chasing microbenchmarks.

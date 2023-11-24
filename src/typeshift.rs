@@ -1,5 +1,5 @@
 use std::cmp::{Ordering, Reverse};
-use std::collections::{BTreeSet, BinaryHeap};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 
 use crate::dict::DICT;
 
@@ -11,16 +11,14 @@ const FIND_ALL_SOLUTIONS: bool = false;
 #[derive(Debug)]
 pub struct Typeshift {
     /// The rotated or inverted puzzle input columns
-    /// Each array is effectively a set of lowercase ascii characters,
-    /// and the first inner set is the leftmost column of the puzzle.
-    columns: Vec<[bool; 26]>,
+    /// eg, the first inner set of this would be the leftmost column of the puzzle
+    columns: Vec<BTreeSet<char>>,
 
     /// A dictionary of usable words, reduced to only words spellable from the input
     words: Vec<&'static str>,
 
     /// The total frequencies of characters in the reduced problem dictionary
-    /// The index of the array represents a lowercase ascii character.
-    char_freqs: [usize; 26],
+    char_freqs: BTreeMap<char, usize>,
 }
 
 impl Typeshift {
@@ -29,40 +27,25 @@ impl Typeshift {
     /// Expects input as a rotated or inverted set of lines:
     /// The leftmost column of the puzzle should be the first line of input.
     pub fn new(input: &str) -> Self {
-        let columns: Vec<[bool; 26]> = input
-            .lines()
-            .map(|l| {
-                let mut set = [false; 26];
-                for ch in l.chars() {
-                    let i = ch as usize - b'a' as usize;
-                    set[i] = true;
-                }
-
-                set
-            })
-            .collect();
+        let columns: Vec<BTreeSet<char>> = input.lines().map(|l| l.chars().collect()).collect();
 
         let words: Vec<&'static str> = DICT
             .iter()
             .filter(|word| word.len() == columns.len())
             .filter(|word| {
-                word.chars().zip(columns.iter()).all(|(ch, col)| {
-                    let i = ch as usize - b'a' as usize;
-                    col[i]
-                })
+                word.chars()
+                    .zip(columns.iter())
+                    .all(|(ch, col)| col.contains(&ch))
             })
             .map(|word| *word)
             .collect();
 
-        let char_freqs =
-            words
-                .iter()
-                .flat_map(|word| word.chars())
-                .fold([0usize; 26], |mut counts, ch| {
-                    let i = ch as usize - b'a' as usize;
-                    counts[i] += 1;
-                    counts
-                });
+        let mut char_freqs: BTreeMap<char, usize> = Default::default();
+        let all_chars = words.iter().flat_map(|word| word.chars());
+        for ch in all_chars {
+            let entry = char_freqs.entry(ch).or_default();
+            *entry += 1;
+        }
 
         Self {
             columns,
@@ -172,7 +155,8 @@ struct PartialSolution<'a> {
     used_words: BTreeSet<&'static str>,
 
     /// The current total usages of a positional character from the input grid
-    char_usages: Vec<[usize; 26]>,
+    /// A count of 0 is guaranteed to be present for unused characters in the column.
+    char_usages: Vec<BTreeMap<char, usize>>,
 }
 
 // deliberately omitting the word list just to make output shorter
@@ -187,8 +171,11 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
 
 impl<'a> PartialSolution<'a> {
     fn new(typeshift: &'a Typeshift) -> Self {
-        let char_usages: Vec<[usize; 26]> =
-            typeshift.columns.iter().map(|_col| [0usize; 26]).collect();
+        let char_usages: Vec<BTreeMap<char, usize>> = typeshift
+            .columns
+            .iter()
+            .map(|col| BTreeMap::from_iter(col.iter().map(|ch| (*ch, 0))))
+            .collect();
 
         Self {
             typeshift,
@@ -235,10 +222,7 @@ impl<'a> PartialSolution<'a> {
     fn new_letters(&self, word: &'static str) -> usize {
         word.chars()
             .zip(self.char_usages.iter())
-            .map(|(ch, usages)| {
-                let i = ch as usize - b'a' as usize;
-                usages[i]
-            })
+            .map(|(ch, usages)| *usages.get(&ch).unwrap())
             .filter(|&usages| usages == 0)
             .count()
     }
@@ -246,10 +230,7 @@ impl<'a> PartialSolution<'a> {
     /// Returns the lowest dict frequency among the letters in the word
     fn min_char_freq(&self, word: &'static str) -> usize {
         word.chars()
-            .map(|ch| {
-                let i = ch as usize - b'a' as usize;
-                self.typeshift.char_freqs[i]
-            })
+            .map(|ch| *self.typeshift.char_freqs.get(&ch).unwrap())
             .min()
             .unwrap()
     }
@@ -257,8 +238,7 @@ impl<'a> PartialSolution<'a> {
     /// Add a word to the solution, updating used character counts
     fn add_word(&mut self, word: &'static str) {
         for (col, word_ch) in word.char_indices() {
-            let i = word_ch as usize - b'a' as usize;
-            let entry = &mut self.char_usages[col][i];
+            let entry = self.char_usages[col].entry(word_ch).or_default();
             *entry += 1;
         }
 
@@ -267,26 +247,19 @@ impl<'a> PartialSolution<'a> {
 
     /// Returns true if no characters are unused
     fn solved(&self) -> bool {
-        self.relevant_char_counts().all(|c| c > 0)
+        self.char_usages
+            .iter()
+            .flat_map(|usages| usages.values())
+            .all(|&count| count > 0)
     }
 
     /// Returns the total characters the solution uses more than once
     fn overlaps(&self) -> usize {
-        self.relevant_char_counts().filter(|&c| c > 1).count()
-    }
-
-    /// Iterates over all char usage counts included in the input problem
-    fn relevant_char_counts(&'a self) -> impl Iterator<Item = usize> + 'a {
-        self.typeshift
-            .columns
+        self.char_usages
             .iter()
-            .zip(self.char_usages.iter())
-            .flat_map(|(col_set, char_usages)| {
-                col_set
-                    .iter()
-                    .zip(char_usages.iter())
-                    .filter_map(|(keep, count)| keep.then_some(*count))
-            })
+            .flat_map(|usages| usages.values())
+            .filter(|&&count| count > 1)
+            .count()
     }
 }
 

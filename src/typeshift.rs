@@ -1,7 +1,7 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 
-use crate::index;
+use crate::dict::DICT;
 
 // This finds the first minimal solution by default.
 // Enable this to find and log the set of all minimal solutions.
@@ -18,7 +18,7 @@ pub struct Typeshift {
     words: Vec<&'static str>,
 
     /// The total frequencies of characters in the reduced problem dictionary
-    char_freqs: [usize; 26],
+    char_freqs: BTreeMap<char, usize>,
 }
 
 impl Typeshift {
@@ -29,25 +29,23 @@ impl Typeshift {
     pub fn new(input: &str) -> Self {
         let columns: Vec<BTreeSet<char>> = input.lines().map(|l| l.chars().collect()).collect();
 
-        let (words, char_freqs) = index::dict_with_counts(columns.len())
-            .filter(|(word, _counts)| {
+        let words: Vec<&'static str> = DICT
+            .iter()
+            .filter(|word| word.len() == columns.len())
+            .filter(|word| {
                 word.chars()
                     .zip(columns.iter())
                     .all(|(ch, col)| col.contains(&ch))
             })
-            .fold(
-                // 32000 ~= the number of 8 letter words; the highest
-                (Vec::with_capacity(32_000), [0usize; 26]),
-                |(mut words, mut counts), (word, word_counts)| {
-                    words.push(*word);
+            .map(|word| *word)
+            .collect();
 
-                    for i in 0..26 {
-                        counts[i] += word_counts[i];
-                    }
-
-                    (words, counts)
-                },
-            );
+        let mut char_freqs: BTreeMap<char, usize> = Default::default();
+        let all_chars = words.iter().flat_map(|word| word.chars());
+        for ch in all_chars {
+            let entry = char_freqs.entry(ch).or_default();
+            *entry += 1;
+        }
 
         Self {
             columns,
@@ -232,10 +230,7 @@ impl<'a> PartialSolution<'a> {
     /// Returns the lowest dict frequency among the letters in the word
     fn min_char_freq(&self, word: &'static str) -> usize {
         word.chars()
-            .map(|ch| {
-                let i = (ch as u8 - b'a') as usize;
-                self.typeshift.char_freqs[i]
-            })
+            .map(|ch| *self.typeshift.char_freqs.get(&ch).unwrap())
             .min()
             .unwrap()
     }

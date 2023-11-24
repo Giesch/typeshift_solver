@@ -13,11 +13,10 @@ fn main() {
 
     let input = include_str!("../files/puzzles/2023-11-19.txt");
     let typeshift = Typeshift::new(input);
-    let load = Instant::now().duration_since(start);
 
     let (solution, steps) = typeshift.find_best_solution();
     let time = Instant::now().duration_since(start);
     let size = typeshift.size();
 
-    dbg!(size, solution, steps, time, load);
+    dbg!(size, solution, steps, time);
 }

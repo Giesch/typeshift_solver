@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-24
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - brfp
+    - uao
+    - yvr
+    - isot
+    - eun
+    - tdgr
+input_file: files/puzzles/2023-11-24.txt
+---
+size: 33
+steps: 15
+solution:
+  - buyout
+  - forted
+  - parser
+  - roving
+

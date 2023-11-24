@@ -267,21 +267,16 @@ impl<'a> PartialSolution<'a> {
 
     /// Returns true if no characters are unused
     fn solved(&self) -> bool {
-        self.typeshift
-            .columns
-            .iter()
-            .zip(self.char_usages.iter())
-            .flat_map(|(col_set, char_usages)| {
-                col_set
-                    .iter()
-                    .zip(char_usages.iter())
-                    .filter_map(|(keep, count)| if *keep { Some(*count) } else { None })
-            })
-            .all(|count| count > 0)
+        self.relevant_char_counts().all(|c| c > 0)
     }
 
     /// Returns the total characters the solution uses more than once
     fn overlaps(&self) -> usize {
+        self.relevant_char_counts().filter(|&c| c > 1).count()
+    }
+
+    /// Iterates over all char usage counts included in the input problem
+    fn relevant_char_counts(&'a self) -> impl Iterator<Item = usize> + 'a {
         self.typeshift
             .columns
             .iter()
@@ -290,10 +285,8 @@ impl<'a> PartialSolution<'a> {
                 col_set
                     .iter()
                     .zip(char_usages.iter())
-                    .filter_map(|(keep, count)| if *keep { Some(*count) } else { None })
+                    .filter_map(|(keep, count)| keep.then_some(*count))
             })
-            .filter(|count| *count > 1)
-            .count()
     }
 }
 

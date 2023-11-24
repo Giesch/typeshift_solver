@@ -2,12 +2,6 @@ use std::time::Instant;
 
 use typeshift_solver::Typeshift;
 
-// TODO
-// eliminate all string processing at startup
-// give an optimal solution order based on speed of new letters used
-// optionally rank all minimal solutions based on best optimal ordering
-// add real benchmark testing
-
 fn main() {
     let start = Instant::now();
 

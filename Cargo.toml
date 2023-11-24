@@ -7,9 +7,14 @@ default-run = "typeshift_solver"
 [dependencies]
 
 [dev-dependencies]
-serde = { version = "1.0.192", features = ["derive"] }
+criterion = { version = "0.4", features = ["html_reports"] }
 insta = { version = "1.34.0", features = ["yaml", "glob"] }
 pretty_assertions = "1.4.0"
+serde = { version = "1.0.192", features = ["derive"] }
+
+[[bench]]
+name = "sample_puzzles"
+harness = false
 
 [profile.dev.package."*"]
 opt-level = 3

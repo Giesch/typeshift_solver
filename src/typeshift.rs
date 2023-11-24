@@ -3,6 +3,9 @@ use std::collections::{BTreeSet, BinaryHeap};
 
 use crate::dict::DICT;
 
+mod collections;
+use collections::*;
+
 // This finds the first minimal solution by default.
 // Enable this to find and log the set of all minimal solutions.
 const FIND_ALL_SOLUTIONS: bool = false;
@@ -13,14 +16,14 @@ pub struct Typeshift {
     /// The rotated or inverted puzzle input columns
     /// Each array is effectively a set of lowercase ascii characters,
     /// and the first inner set is the leftmost column of the puzzle.
-    columns: Vec<[bool; 26]>,
+    columns: Vec<AlphaSet>,
 
     /// A dictionary of usable words, reduced to only words spellable from the input
     words: Vec<&'static str>,
 
     /// The total frequencies of characters in the reduced problem dictionary
     /// The index of the array represents a lowercase ascii character.
-    char_freqs: [usize; 26],
+    char_freqs: AlphaCounts,
 }
 
 impl Typeshift {
@@ -29,40 +32,29 @@ impl Typeshift {
     /// Expects input as a rotated or inverted set of lines:
     /// The leftmost column of the puzzle should be the first line of input.
     pub fn new(input: &str) -> Self {
-        let columns: Vec<[bool; 26]> = input
+        let columns: Vec<_> = input
             .lines()
-            .map(|l| {
-                let mut set = [false; 26];
-                for ch in l.chars() {
-                    let i = ch as usize - b'a' as usize;
-                    set[i] = true;
-                }
-
-                set
-            })
+            .map(|l| AlphaSet::from_iter(l.chars()))
             .collect();
 
         let words: Vec<&'static str> = DICT
             .iter()
             .filter(|word| word.len() == columns.len())
             .filter(|word| {
-                word.chars().zip(columns.iter()).all(|(ch, col)| {
-                    let i = ch as usize - b'a' as usize;
-                    col[i]
-                })
+                word.chars()
+                    .zip(columns.iter())
+                    .all(|(ch, col)| col.contains(ch))
             })
             .map(|word| *word)
             .collect();
 
-        let char_freqs =
-            words
-                .iter()
-                .flat_map(|word| word.chars())
-                .fold([0usize; 26], |mut counts, ch| {
-                    let i = ch as usize - b'a' as usize;
-                    counts[i] += 1;
-                    counts
-                });
+        let char_freqs = words.iter().flat_map(|word| word.chars()).fold(
+            AlphaCounts::new(),
+            |mut counts, ch| {
+                counts.add(ch);
+                counts
+            },
+        );
 
         Self {
             columns,
@@ -172,7 +164,7 @@ struct PartialSolution<'a> {
     used_words: BTreeSet<&'static str>,
 
     /// The current total usages of a positional character from the input grid
-    char_usages: Vec<[usize; 26]>,
+    char_usages: Vec<AlphaCounts>,
 }
 
 // deliberately omitting the word list just to make output shorter
@@ -187,13 +179,10 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
 
 impl<'a> PartialSolution<'a> {
     fn new(typeshift: &'a Typeshift) -> Self {
-        let char_usages: Vec<[usize; 26]> =
-            typeshift.columns.iter().map(|_col| [0usize; 26]).collect();
-
         Self {
             typeshift,
             used_words: Default::default(),
-            char_usages,
+            char_usages: vec![AlphaCounts::new(); typeshift.columns.len()],
         }
     }
 
@@ -235,10 +224,7 @@ impl<'a> PartialSolution<'a> {
     fn new_letters(&self, word: &'static str) -> usize {
         word.chars()
             .zip(self.char_usages.iter())
-            .map(|(ch, usages)| {
-                let i = ch as usize - b'a' as usize;
-                usages[i]
-            })
+            .map(|(ch, usages)| usages.get(ch))
             .filter(|&usages| usages == 0)
             .count()
     }
@@ -246,10 +232,7 @@ impl<'a> PartialSolution<'a> {
     /// Returns the lowest dict frequency among the letters in the word
     fn min_char_freq(&self, word: &'static str) -> usize {
         word.chars()
-            .map(|ch| {
-                let i = ch as usize - b'a' as usize;
-                self.typeshift.char_freqs[i]
-            })
+            .map(|ch| self.typeshift.char_freqs.get(ch))
             .min()
             .unwrap()
     }
@@ -257,9 +240,7 @@ impl<'a> PartialSolution<'a> {
     /// Add a word to the solution, updating used character counts
     fn add_word(&mut self, word: &'static str) {
         for (col, word_ch) in word.char_indices() {
-            let i = word_ch as usize - b'a' as usize;
-            let entry = &mut self.char_usages[col][i];
-            *entry += 1;
+            self.char_usages[col].add(word_ch);
         }
 
         self.used_words.insert(word);
@@ -281,12 +262,7 @@ impl<'a> PartialSolution<'a> {
             .columns
             .iter()
             .zip(self.char_usages.iter())
-            .flat_map(|(col_set, char_usages)| {
-                col_set
-                    .iter()
-                    .zip(char_usages.iter())
-                    .filter_map(|(keep, count)| keep.then_some(*count))
-            })
+            .flat_map(|(col_set, char_usages)| col_set.filter_counts(char_usages))
     }
 }
 

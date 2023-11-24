@@ -13,8 +13,8 @@ fn main() {
     let end_ts = Instant::now();
 
     let prep_time = prep_ts.duration_since(start);
-    let total_time = end_ts.duration_since(start);
     let solve_time = end_ts.duration_since(prep_ts);
+    let total_time = end_ts.duration_since(start);
     let size = typeshift.size();
 
     dbg!(size, solution, steps, total_time, prep_time, solve_time);

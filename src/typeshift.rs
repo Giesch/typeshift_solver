@@ -41,20 +41,15 @@ impl Typeshift {
             .iter()
             .filter(|word| word.len() == columns.len())
             .filter(|word| {
+                // keep only words spellable from the columns
                 word.chars()
                     .zip(columns.iter())
                     .all(|(ch, col)| col.contains(ch))
             })
-            .map(|word| *word)
+            .copied()
             .collect();
 
-        let char_freqs = words.iter().flat_map(|word| word.chars()).fold(
-            AlphaCounts::new(),
-            |mut counts, ch| {
-                counts.add(ch);
-                counts
-            },
-        );
+        let char_freqs = AlphaCounts::from_iter(words.iter().flat_map(|word| word.chars()));
 
         Self {
             columns,
@@ -72,7 +67,7 @@ impl Typeshift {
     /// and the number of intermediate partial solutions touched along the way.
     pub fn find_best_solution(&self) -> (BTreeSet<&'static str>, usize) {
         let mut steps: usize = 0;
-        let mut to_check = BinaryHeap::from_iter([RankedSolution(PartialSolution::new(self))]);
+        let mut to_check = BinaryHeap::from_iter([RankedSolution(PartialSolution::empty(self))]);
         let mut complete: BTreeSet<BTreeSet<&'static str>> = Default::default();
         let mut attempted: BTreeSet<BTreeSet<&'static str>> = Default::default();
 
@@ -83,7 +78,7 @@ impl Typeshift {
                 let words = partial_solution.used_words;
 
                 if FIND_ALL_SOLUTIONS {
-                    complete.insert(BTreeSet::from_iter(words));
+                    complete.insert(words);
                     continue;
                 } else {
                     return (words, steps);
@@ -160,6 +155,7 @@ impl<'a> Eq for RankedSolution<'a> {}
 #[derive(Clone)]
 struct PartialSolution<'a> {
     typeshift: &'a Typeshift,
+
     /// The words in the solution so far
     used_words: BTreeSet<&'static str>,
 
@@ -178,7 +174,7 @@ impl<'a> std::fmt::Debug for PartialSolution<'a> {
 }
 
 impl<'a> PartialSolution<'a> {
-    fn new(typeshift: &'a Typeshift) -> Self {
+    fn empty(typeshift: &'a Typeshift) -> Self {
         Self {
             typeshift,
             used_words: Default::default(),

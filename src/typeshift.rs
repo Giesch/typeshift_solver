@@ -1,29 +1,28 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeSet, BinaryHeap};
+use std::iter::zip;
 
 use crate::dict::DICT;
 
 mod collections;
 use collections::*;
 
-// This finds the first minimal solution by default.
-// Enable this to find and log the set of all minimal solutions.
+// This module finds the first minimal solution by default.
+// Enable this flag to find and log the set of all minimal solutions.
 const FIND_ALL_SOLUTIONS: bool = false;
 
 /// An unsolved Typeshift puzzle
 #[derive(Debug)]
 pub struct Typeshift {
     /// The rotated or inverted puzzle input columns
-    /// Each array is effectively a set of lowercase ascii characters,
-    /// and the first inner set is the leftmost column of the puzzle.
-    columns: Vec<AlphaSet>,
+    /// The first inner set is the leftmost column of the puzzle.
+    columns: Vec<LetterSet>,
 
     /// A dictionary of usable words, reduced to only words spellable from the input
     words: Vec<&'static str>,
 
     /// The total frequencies of characters in the reduced problem dictionary
-    /// The index of the array represents a lowercase ascii character.
-    char_freqs: AlphaCounts,
+    char_freqs: LetterCounts,
 }
 
 impl Typeshift {
@@ -34,22 +33,17 @@ impl Typeshift {
     pub fn new(input: &str) -> Self {
         let columns: Vec<_> = input
             .lines()
-            .map(|l| AlphaSet::from_iter(l.chars()))
+            .map(|l| LetterSet::from_iter(l.chars()))
             .collect();
 
         let words: Vec<&'static str> = DICT
             .iter()
             .filter(|word| word.len() == columns.len())
-            .filter(|word| {
-                // keep only words spellable from the columns
-                word.chars()
-                    .zip(columns.iter())
-                    .all(|(ch, col)| col.contains(ch))
-            })
+            .filter(|word| zip(word.chars(), columns.iter()).all(|(ch, col)| col.contains(ch)))
             .copied()
             .collect();
 
-        let char_freqs = AlphaCounts::from_iter(words.iter().flat_map(|word| word.chars()));
+        let char_freqs = LetterCounts::from_iter(words.iter().flat_map(|word| word.chars()));
 
         Self {
             columns,
@@ -122,7 +116,7 @@ struct RankedSolution<'a>(PartialSolution<'a>);
 
 impl<'a> RankedSolution<'a> {
     /// Returns a tuple for sorting solutions by priority when solving
-    /// for use in a max-heap; higher is better
+    /// For use in a max-heap; higher is better
     fn rank(&self) -> impl Ord + Copy {
         (
             self.0.solved(),            // a finished solution comes first
@@ -160,7 +154,7 @@ struct PartialSolution<'a> {
     used_words: BTreeSet<&'static str>,
 
     /// The current total usages of a positional character from the input grid
-    char_usages: Vec<AlphaCounts>,
+    char_usages: Vec<LetterCounts>,
 }
 
 // deliberately omitting the word list just to make output shorter
@@ -178,7 +172,7 @@ impl<'a> PartialSolution<'a> {
         Self {
             typeshift,
             used_words: Default::default(),
-            char_usages: vec![AlphaCounts::new(); typeshift.columns.len()],
+            char_usages: vec![LetterCounts::new(); typeshift.columns.len()],
         }
     }
 
@@ -218,10 +212,9 @@ impl<'a> PartialSolution<'a> {
 
     /// Returns the number of unused letters the word would use
     fn new_letters(&self, word: &'static str) -> usize {
-        word.chars()
-            .zip(self.char_usages.iter())
-            .map(|(ch, usages)| usages.get(ch))
-            .filter(|&usages| usages == 0)
+        zip(word.chars(), self.char_usages.iter())
+            .map(|(ch, counts)| counts.get(ch))
+            .filter(|&count| count == 0)
             .count()
     }
 
@@ -254,11 +247,8 @@ impl<'a> PartialSolution<'a> {
 
     /// Iterates over all char usage counts included in the input problem
     fn relevant_char_counts(&'a self) -> impl Iterator<Item = usize> + 'a {
-        self.typeshift
-            .columns
-            .iter()
-            .zip(self.char_usages.iter())
-            .flat_map(|(col_set, char_usages)| col_set.filter_counts(char_usages))
+        zip(self.typeshift.columns.iter(), self.char_usages.iter())
+            .flat_map(|(col, counts)| col.filter_counts(counts))
     }
 }
 

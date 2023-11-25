@@ -1,11 +1,11 @@
 //! Collections of ascii characters implemented with arrays
 
 /// A set of lowercase alphabetic ascii characters
-pub struct AlphaSet([bool; 26]);
+pub struct LetterSet(LetterMap<bool>);
 
-impl AlphaSet {
+impl LetterSet {
     pub fn new() -> Self {
-        Self([false; 26])
+        Self(LetterMap::new())
     }
 
     pub fn from_iter(chars: impl Iterator<Item = char>) -> Self {
@@ -18,28 +18,26 @@ impl AlphaSet {
     }
 
     pub fn add(&mut self, ch: char) {
-        self.0[Self::index(ch)] = true;
+        let entry = self.0.entry(ch);
+        *entry = true;
     }
 
     pub fn contains(&self, ch: char) -> bool {
-        self.0[Self::index(ch)]
+        self.0.get(ch)
     }
 
     /// Returns only the char counts that are included in the set
     pub fn filter_counts<'a>(
         &'a self,
-        counts: &'a AlphaCounts,
+        counts: &'a LetterCounts,
     ) -> impl Iterator<Item = usize> + 'a {
-        (0..26).filter(|&i| self.0[i]).map(|i| counts.get_raw(i))
-    }
-
-    #[inline(always)]
-    fn index(ch: char) -> usize {
-        ch as usize - b'a' as usize
+        ('a'..='z')
+            .filter(|&ch| self.contains(ch))
+            .map(|ch| counts.get(ch))
     }
 }
 
-impl std::fmt::Debug for AlphaSet {
+impl std::fmt::Debug for LetterSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set()
             .entries(
@@ -55,11 +53,11 @@ impl std::fmt::Debug for AlphaSet {
 
 /// A map of lowercase ascii characters to natural numbers
 #[derive(Clone)]
-pub struct AlphaCounts([usize; 26]);
+pub struct LetterCounts(LetterMap<usize>);
 
-impl AlphaCounts {
+impl LetterCounts {
     pub fn new() -> Self {
-        Self([0; 26])
+        Self(LetterMap::new())
     }
 
     pub fn from_iter(chars: impl Iterator<Item = char>) -> Self {
@@ -72,24 +70,16 @@ impl AlphaCounts {
     }
 
     pub fn add(&mut self, ch: char) {
-        self.0[Self::index(ch)] += 1;
+        let entry = self.0.entry(ch);
+        *entry += 1;
     }
 
     pub fn get(&self, ch: char) -> usize {
-        self.0[Self::index(ch)]
-    }
-
-    fn get_raw(&self, i: usize) -> usize {
-        self.0[i]
-    }
-
-    #[inline(always)]
-    fn index(ch: char) -> usize {
-        ch as usize - b'a' as usize
+        self.0.get(ch)
     }
 }
 
-impl std::fmt::Debug for AlphaCounts {
+impl std::fmt::Debug for LetterCounts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_map()
             .entries(
@@ -103,6 +93,32 @@ impl std::fmt::Debug for AlphaCounts {
     }
 }
 
+/// An array-backed map of ascii characters to a value
+#[derive(Clone, Copy, Default)]
+struct LetterMap<T: Copy + Default>([T; 26]);
+
+impl<T: Copy + Default> LetterMap<T> {
+    fn new() -> Self {
+        Self([Default::default(); 26])
+    }
+
+    fn iter(&self) -> std::slice::Iter<T> {
+        self.0.iter()
+    }
+
+    fn entry(&mut self, ch: char) -> &mut T {
+        &mut self.0[Self::index(ch)]
+    }
+
+    fn get(&self, ch: char) -> T {
+        self.0[Self::index(ch)]
+    }
+
+    fn index(ch: char) -> usize {
+        ch as usize - b'a' as usize
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -112,8 +128,8 @@ mod tests {
 
     #[test]
     fn filter_counts_smoke() {
-        let column = AlphaSet::from_iter("eiz".chars());
-        let usages = AlphaCounts::from_iter("eeeii".chars());
+        let column = LetterSet::from_iter("eiz".chars());
+        let usages = LetterCounts::from_iter("eeeii".chars());
         let result: Vec<_> = column.filter_counts(&usages).collect();
 
         // order is alphabetical, but that should be irrelevant to how its used
@@ -121,8 +137,8 @@ mod tests {
     }
 
     #[test]
-    fn alpha_set_smoke() {
-        let set = AlphaSet::from_iter("hi".chars());
+    fn letter_set_smoke() {
+        let set = LetterSet::from_iter("hi".chars());
 
         assert!(set.contains('h'));
         assert!(set.contains('i'));
@@ -130,8 +146,8 @@ mod tests {
     }
 
     #[test]
-    fn alpha_counts_smoke() {
-        let counts = AlphaCounts::from_iter("heyyy".chars());
+    fn letter_counts_smoke() {
+        let counts = LetterCounts::from_iter("heyyy".chars());
 
         assert_eq!(counts.get('h'), 1);
         assert_eq!(counts.get('e'), 1);
@@ -140,16 +156,16 @@ mod tests {
     }
 
     #[test]
-    fn alpha_set_debug() {
-        let set = AlphaSet::from_iter("hi".chars());
+    fn letter_set_debug() {
+        let set = LetterSet::from_iter("hi".chars());
         let debug = format!("{set:?}");
 
         assert_eq!(debug, "{'h', 'i'}");
     }
 
     #[test]
-    fn alpha_counts_debug() {
-        let counts = AlphaCounts::from_iter("heyyy".chars());
+    fn letter_counts_debug() {
+        let counts = LetterCounts::from_iter("heyyy".chars());
         let debug = format!("{counts:?}");
 
         assert_eq!(debug, "{'e': 1, 'h': 1, 'y': 3}");

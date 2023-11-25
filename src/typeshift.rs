@@ -1,7 +1,7 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeSet, BinaryHeap};
 
-use crate::dict::DICT;
+use crate::index;
 
 mod collections;
 use collections::*;
@@ -37,24 +37,19 @@ impl Typeshift {
             .map(|l| AlphaSet::from_iter(l.chars()))
             .collect();
 
-        let words: Vec<&'static str> = DICT
-            .iter()
-            .filter(|word| word.len() == columns.len())
-            .filter(|word| {
-                word.chars()
-                    .zip(columns.iter())
-                    .all(|(ch, col)| col.contains(ch))
-            })
-            .map(|word| *word)
-            .collect();
+        let mut words = Vec::new();
+        let mut char_freqs = AlphaCounts::new();
+        for (word, word_counts) in index::dict_with_counts(columns.len()) {
+            let spellable = word
+                .chars()
+                .zip(columns.iter())
+                .all(|(ch, col)| col.contains(ch));
 
-        let char_freqs = words.iter().flat_map(|word| word.chars()).fold(
-            AlphaCounts::new(),
-            |mut counts, ch| {
-                counts.add(ch);
-                counts
-            },
-        );
+            if spellable {
+                words.push(*word);
+                char_freqs = char_freqs.sum(*word_counts);
+            }
+        }
 
         Self {
             columns,

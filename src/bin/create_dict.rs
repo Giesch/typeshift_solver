@@ -1,6 +1,9 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
+const MIN_WORD_LEN: usize = 4;
+const MAX_WORD_LEN: usize = 7;
+
 /// Writes a length-filtered wordnik dictionary as a rust module,
 /// which avoids string processing and file io in the main binary.
 fn main() {
@@ -24,9 +27,6 @@ fn main() {
 
     file.write_all(buf.as_bytes()).unwrap();
 }
-
-const MIN_WORD_LEN: usize = 4;
-const MAX_WORD_LEN: usize = 7;
 
 const MODULE_DOC: &str = r#"//! THIS IS A GENERATED FILE
 //! Do not edit it directly; see src/bin/create_dict.rs

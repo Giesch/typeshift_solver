@@ -46,8 +46,7 @@ impl std::fmt::Debug for AlphaSet {
                 self.0
                     .iter()
                     .enumerate()
-                    .filter(|(_i, &include)| include)
-                    .map(|(i, _include)| (i as u8 + b'a' as u8) as char),
+                    .filter_map(|(i, &include)| include.then_some((i as u8 + b'a') as char)),
             )
             .finish()
     }
@@ -60,6 +59,14 @@ pub struct AlphaCounts([usize; 26]);
 impl AlphaCounts {
     pub fn new() -> Self {
         Self([0; 26])
+    }
+
+    pub fn sum(mut self, other: [usize; 26]) -> Self {
+        for (i, count) in other.iter().enumerate() {
+            self.0[i] += count;
+        }
+
+        self
     }
 
     pub fn add(&mut self, ch: char) {
@@ -87,8 +94,34 @@ impl std::fmt::Debug for AlphaCounts {
                 self.0
                     .iter()
                     .enumerate()
-                    .map(|(i, count)| ((i as u8 + b'a' as u8) as char, count)),
+                    .filter(|(_, count)| **count > 0)
+                    .map(|(i, count)| ((i as u8 + b'a') as char, count)),
             )
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn alpha_set_debug() {
+        let set = AlphaSet::from_iter("hi".chars());
+        let debug = format!("{set:?}");
+
+        assert_eq!(debug, "{'h', 'i'}");
+    }
+
+    #[test]
+    fn alpha_counts_debug() {
+        let mut counts = AlphaCounts::new();
+        for ch in "heyyy".chars() {
+            counts.add(ch);
+        }
+
+        let debug = format!("{counts:?}");
+
+        assert_eq!(debug, "{'e': 1, 'h': 1, 'y': 3}");
     }
 }

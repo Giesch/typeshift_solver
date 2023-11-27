@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-21
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - csb
@@ -11,11 +11,12 @@ info:
     - sf
 input_file: files/puzzles/2023-11-21.txt
 ---
-size: 18
-steps: 14
-solution:
+possible_words: 18
+steps_to_first_solution: 14
+first_solution:
   - brans
   - cills
   - scaff
   - sties
+possible_solutions: 2
 

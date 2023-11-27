@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-22
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - aotef
@@ -11,12 +11,13 @@ info:
     - edtsr
 input_file: files/puzzles/2023-11-22.txt
 ---
-size: 35
-steps: 18
-solution:
+possible_words: 35
+steps_to_first_solution: 18
+first_solution:
   - angle
   - exist
   - flied
   - owner
   - tries
+possible_solutions: 8
 

@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-18
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - bfhl
@@ -12,11 +12,12 @@ info:
     - psre
 input_file: files/puzzles/2023-11-18.txt
 ---
-size: 26
-steps: 8
-solution:
+possible_words: 26
+steps_to_first_solution: 8
+first_solution:
   - backup
   - fridge
   - heists
   - lender
+possible_solutions: 3
 

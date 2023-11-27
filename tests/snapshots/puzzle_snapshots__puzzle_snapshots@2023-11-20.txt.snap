@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-20
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - idtf
@@ -13,11 +13,12 @@ info:
     - ygsd
 input_file: files/puzzles/2023-11-20.txt
 ---
-size: 23
-steps: 8
-solution:
+possible_words: 23
+steps_to_first_solution: 8
+first_solution:
   - deludes
   - flowery
   - itching
   - trilled
+possible_solutions: 1
 

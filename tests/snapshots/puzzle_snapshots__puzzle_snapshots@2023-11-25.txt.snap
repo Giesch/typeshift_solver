@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-25
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - bamis
@@ -12,12 +12,13 @@ info:
     - syr
 input_file: files/puzzles/2023-11-25.txt
 ---
-size: 59
-steps: 46
-solution:
+possible_words: 59
+steps_to_first_solution: 46
+first_solution:
   - aivers
   - bummer
   - ickily
   - modals
   - sarees
+possible_solutions: 7
 

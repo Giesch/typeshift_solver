@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-23
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - rlwap
@@ -11,12 +11,13 @@ info:
     - nsre
 input_file: files/puzzles/2023-11-23.txt
 ---
-size: 72
-steps: 37
-solution:
+possible_words: 72
+steps_to_first_solution: 37
+first_solution:
   - amuse
   - loots
   - putts
   - river
   - woman
+possible_solutions: 22
 

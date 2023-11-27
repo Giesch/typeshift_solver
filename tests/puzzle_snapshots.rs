@@ -7,9 +7,10 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 struct SolutionSnapshot {
-    size: usize,
-    steps: usize,
-    solution: BTreeSet<&'static str>,
+    possible_words: usize,
+    steps_to_first_solution: usize,
+    first_solution: BTreeSet<&'static str>,
+    possible_solutions: usize,
 }
 
 #[derive(Serialize)]
@@ -31,20 +32,22 @@ fn puzzle_snapshots() {
         let input = std::fs::read_to_string(path).unwrap();
 
         let typeshift = Typeshift::new(&input);
-        let (solution, steps) = typeshift.find_first_solution();
-        let size = typeshift.size();
+        let possible_words = typeshift.size();
+        let (first_solution, steps_to_first_solution) = typeshift.find_first_solution();
+
+        let (all_solutions, _all_steps) = typeshift.find_all_solutions();
+        let possible_solutions = all_solutions.len();
 
         let info = SnapshotInfo::new(&input);
+        let snapshot = SolutionSnapshot {
+            possible_words,
+            steps_to_first_solution,
+            first_solution,
+            possible_solutions,
+        };
 
-        with_settings!({
-            description => name,
-            info => &info
-        }, {
-            assert_yaml_snapshot!(SolutionSnapshot {
-                size,
-                steps,
-                solution,
-            });
+        with_settings!({ description => name, info => &info }, {
+            assert_yaml_snapshot!(snapshot);
         });
     });
 }

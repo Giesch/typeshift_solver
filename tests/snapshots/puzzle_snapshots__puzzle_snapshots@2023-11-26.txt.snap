@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-26
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - mced
@@ -13,11 +13,12 @@ info:
     - red
 input_file: files/puzzles/2023-11-26.txt
 ---
-size: 7
-steps: 7
-solution:
+possible_words: 7
+steps_to_first_solution: 7
+first_solution:
   - concord
   - dogwood
   - entwine
   - muggier
+possible_solutions: 1
 

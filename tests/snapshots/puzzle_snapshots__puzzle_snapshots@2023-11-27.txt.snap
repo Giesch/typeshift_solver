@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-27
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - tmpb
@@ -11,11 +11,12 @@ info:
     - ystf
 input_file: files/puzzles/2023-11-27.txt
 ---
-size: 86
-steps: 10
-solution:
+possible_words: 86
+steps_to_first_solution: 10
+first_solution:
   - burnt
   - mairs
   - pecky
   - thief
+possible_solutions: 5
 

@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-17
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - qagwm
@@ -11,12 +11,13 @@ info:
     - hsnrk
 input_file: files/puzzles/2023-11-17.txt
 ---
-size: 60
-steps: 11
-solution:
+possible_words: 60
+steps_to_first_solution: 11
+first_solution:
   - again
   - gater
   - mouth
   - quick
   - woods
+possible_solutions: 2
 

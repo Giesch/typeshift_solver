@@ -1,7 +1,7 @@
 ---
 source: tests/puzzle_snapshots.rs
 description: 2023-11-19
-expression: "SolutionSnapshot { size, steps, solution }"
+expression: snapshot
 info:
   columns:
     - pcfg
@@ -12,12 +12,13 @@ info:
     - rsy
 input_file: files/puzzles/2023-11-19.txt
 ---
-size: 70
-steps: 67
-solution:
+possible_words: 70
+steps_to_first_solution: 67
+first_solution:
   - chumps
   - corves
   - fifers
   - granny
   - poiser
+possible_solutions: 1
 

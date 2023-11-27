@@ -1,0 +1,21 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-27
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - tmpb
+    - aehu
+    - cir
+    - nrke
+    - ystf
+input_file: files/puzzles/2023-11-27.txt
+---
+size: 86
+steps: 10
+solution:
+  - burnt
+  - mairs
+  - pecky
+  - thief
+

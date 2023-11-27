@@ -31,7 +31,7 @@ fn puzzle_snapshots() {
         let input = std::fs::read_to_string(path).unwrap();
 
         let typeshift = Typeshift::new(&input);
-        let (solution, steps) = typeshift.find_best_solution();
+        let (solution, steps) = typeshift.find_first_solution();
         let size = typeshift.size();
 
         let info = SnapshotInfo::new(&input);

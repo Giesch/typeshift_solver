@@ -1,5 +1,6 @@
 use typeshift_solver::*;
 
+/// A helper for looking at backtracking performance over all snapshots
 fn main() {
     let dir = std::fs::read_dir("./files/puzzles").unwrap();
 
@@ -14,9 +15,11 @@ fn main() {
 
     for (name, input) in puzzles {
         let typeshift = Typeshift::new(&input);
-        let (_solution, steps) = typeshift.find_best_solution();
         let size = typeshift.size();
+        let (_first_solution, steps) = typeshift.find_first_solution();
+        let (all_solutions, _all_steps) = typeshift.find_all_solutions();
+        let total_solutions = all_solutions.len();
 
-        println!("{name}\n  size:  {size}\n  steps: {steps}");
+        println!("{name}\n  size: {size}\n  steps: {steps}\n  solutions: {total_solutions}");
     }
 }

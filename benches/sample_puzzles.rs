@@ -4,7 +4,7 @@ use typeshift_solver::Typeshift;
 
 fn bench_typeshift(input: &str) {
     let typeshift = Typeshift::new(input);
-    let _ = typeshift.find_best_solution();
+    let _ = typeshift.find_first_solution();
 }
 
 fn criterion_benchmark(c: &mut Criterion) {

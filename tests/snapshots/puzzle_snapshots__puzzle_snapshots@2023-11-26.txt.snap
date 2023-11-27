@@ -1,0 +1,23 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-26
+expression: "SolutionSnapshot { size, steps, solution }"
+info:
+  columns:
+    - mced
+    - nou
+    - gnt
+    - wgc
+    - io
+    - eorn
+    - red
+input_file: files/puzzles/2023-11-26.txt
+---
+size: 7
+steps: 7
+solution:
+  - concord
+  - dogwood
+  - entwine
+  - muggier
+

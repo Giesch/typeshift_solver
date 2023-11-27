@@ -7,10 +7,6 @@ use crate::dict::DICT;
 mod collections;
 use collections::*;
 
-// This module finds the first minimal solution by default.
-// Enable this flag to find and log the set of all minimal solutions.
-const FIND_ALL_SOLUTIONS: bool = false;
-
 /// An unsolved Typeshift puzzle
 #[derive(Debug)]
 pub struct Typeshift {
@@ -59,7 +55,18 @@ impl Typeshift {
 
     /// Returns the first minimal solution found,
     /// and the number of intermediate partial solutions touched along the way.
-    pub fn find_best_solution(&self) -> (BTreeSet<&'static str>, usize) {
+    pub fn find_first_solution(&self) -> (BTreeSet<&'static str>, usize) {
+        let (mut solutions, steps) = self.solve(SolveMode::FindFirst);
+        (solutions.pop_first().unwrap(), steps)
+    }
+
+    /// Returns the set of all minimal solutions,
+    /// and the number of intermediate partial solutions touched along the way.
+    pub fn find_all_solutions(&self) -> (BTreeSet<BTreeSet<&'static str>>, usize) {
+        self.solve(SolveMode::FindAll)
+    }
+
+    fn solve(&self, mode: SolveMode) -> (BTreeSet<BTreeSet<&'static str>>, usize) {
         let mut steps: usize = 0;
         let mut to_check = BinaryHeap::from_iter([RankedSolution(PartialSolution::empty(self))]);
         let mut complete: BTreeSet<BTreeSet<&'static str>> = Default::default();
@@ -71,11 +78,14 @@ impl Typeshift {
             if partial_solution.solved() {
                 let words = partial_solution.used_words;
 
-                if FIND_ALL_SOLUTIONS {
-                    complete.insert(words);
-                    continue;
-                } else {
-                    return (words, steps);
+                match mode {
+                    SolveMode::FindFirst => {
+                        return (BTreeSet::from_iter([words]), steps);
+                    }
+                    SolveMode::FindAll => {
+                        complete.insert(words);
+                        continue;
+                    }
                 }
             }
 
@@ -100,15 +110,23 @@ impl Typeshift {
             .expect("no solutions found")
             .len();
 
-        let mut all_smallest: BTreeSet<_> = complete
+        let all_smallest: BTreeSet<_> = complete
             .into_iter()
             .filter(|sol| sol.len() == minimum_size)
             .collect();
 
-        dbg!(&all_smallest);
-
-        (all_smallest.pop_first().unwrap(), steps)
+        (all_smallest, steps)
     }
+}
+
+/// Whether to find the first minimal solution or all minimal solutions
+#[derive(Default, Debug, Clone, Copy)]
+enum SolveMode {
+    /// Find the first minimal solution
+    #[default]
+    FindFirst,
+    /// Find all minimal solutions
+    FindAll,
 }
 
 /// A sortable wrapper for comparing the quality of partial solutions
@@ -183,6 +201,8 @@ impl<'a> PartialSolution<'a> {
 
         ranked_words
             .into_iter()
+            // TODO does this overtrim now that rank includes rarity?
+            // ie; does it cause us to fail to find all solutions
             .take_while(|(_word, rank)| *rank == best_rank)
             .map(|(word, _rank)| word)
             .collect()
@@ -270,7 +290,8 @@ mod tests {
         test_input(input, solution, steps);
     }
 
-    /// the largest input and slowest puzzle so far
+    /// the largest input with a single solution (by this dictionary and algorithm);
+    /// the slowest puzzle so far
     #[test]
     fn large_example() {
         let input = include_str!("../files/puzzles/2023-11-19.txt");
@@ -286,7 +307,7 @@ mod tests {
         expected_steps: usize,
     ) {
         let typeshift = Typeshift::new(input);
-        let (solution, steps) = typeshift.find_best_solution();
+        let (solution, steps) = typeshift.find_first_solution();
 
         assert_eq!(steps, expected_steps);
         assert_eq!(solution, expected_solution.into());

@@ -9,7 +9,7 @@ fn main() {
     let typeshift = Typeshift::new(input);
     let prep_ts = Instant::now();
 
-    let (solution, steps) = typeshift.find_best_solution();
+    let (solution, steps) = typeshift.find_first_solution();
     let end_ts = Instant::now();
 
     let prep_time = prep_ts.duration_since(start);

@@ -201,8 +201,7 @@ impl<'a> PartialSolution<'a> {
 
         ranked_words
             .into_iter()
-            // TODO does this overtrim now that rank includes rarity?
-            // ie; does it cause us to fail to find all solutions
+            // TODO this overtrims and can fail to find all possible solutions
             .take_while(|(_word, rank)| *rank == best_rank)
             .map(|(word, _rank)| word)
             .collect()
@@ -255,18 +254,18 @@ impl<'a> PartialSolution<'a> {
         self.used_words.insert(word);
     }
 
-    /// Returns true if no characters are unused
+    /// Returns true if all characters are used at least once
     fn solved(&self) -> bool {
-        self.relevant_char_counts().all(|c| c > 0)
+        self.included_char_counts().all(|c| c > 0)
     }
 
-    /// Returns the total characters the solution uses more than once
+    /// Returns the total number of characters the solution uses more than once
     fn overlaps(&self) -> usize {
-        self.relevant_char_counts().filter(|&c| c > 1).count()
+        self.included_char_counts().filter(|&c| c > 1).count()
     }
 
     /// Iterates over all char usage counts included in the input problem
-    fn relevant_char_counts(&'a self) -> impl Iterator<Item = usize> + 'a {
+    fn included_char_counts(&self) -> impl Iterator<Item = usize> + '_ {
         zip(self.typeshift.columns.iter(), self.char_usages.iter())
             .flat_map(|(col, counts)| col.filter_counts(counts))
     }
@@ -280,7 +279,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    /// a small input that should stay fast
+    /// A small input that should stay fast
     #[test]
     fn small_example() {
         let input = include_str!("../files/puzzles/2023-11-16.txt");
@@ -290,8 +289,8 @@ mod tests {
         test_input(input, solution, steps);
     }
 
-    /// the largest input with a single solution (by this dictionary and algorithm);
-    /// the slowest puzzle so far
+    /// The largest input with a single solution (by this dictionary and algorithm);
+    /// The slowest puzzle so far
     #[test]
     fn large_example() {
         let input = include_str!("../files/puzzles/2023-11-19.txt");

@@ -31,23 +31,17 @@ impl LetterSet {
         &'a self,
         counts: &'a LetterCounts,
     ) -> impl Iterator<Item = usize> + 'a {
-        ('a'..='z')
-            .filter(|&ch| self.contains(ch))
-            .map(|ch| counts.get(ch))
+        self.iter().map(|ch| counts.get(ch))
+    }
+
+    fn iter(&self) -> impl Iterator<Item = char> + '_ {
+        ('a'..='z').filter(|&ch| self.contains(ch))
     }
 }
 
 impl std::fmt::Debug for LetterSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set()
-            .entries(
-                self.0
-                    .iter()
-                    .enumerate()
-                    .filter(|(_i, &include)| include)
-                    .map(|(i, _include)| (i as u8 + b'a') as char),
-            )
-            .finish()
+        f.debug_set().entries(self.iter()).finish()
     }
 }
 
@@ -81,29 +75,18 @@ impl LetterCounts {
 
 impl std::fmt::Debug for LetterCounts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_map()
-            .entries(
-                self.0
-                    .iter()
-                    .enumerate()
-                    .filter(|(_i, count)| **count > 0)
-                    .map(|(i, count)| ((i as u8 + b'a') as char, count)),
-            )
-            .finish()
+        let entries = self.0.entries().filter(|(_ch, &count)| count > 0);
+        f.debug_map().entries(entries).finish()
     }
 }
 
 /// An array-backed map of ascii characters to a value
 #[derive(Clone, Copy, Default)]
-struct LetterMap<T: Copy + Default>([T; 26]);
+struct LetterMap<T>([T; 26]);
 
 impl<T: Copy + Default> LetterMap<T> {
     fn new() -> Self {
         Self([Default::default(); 26])
-    }
-
-    fn iter(&self) -> std::slice::Iter<T> {
-        self.0.iter()
     }
 
     fn entry(&mut self, ch: char) -> &mut T {
@@ -116,6 +99,10 @@ impl<T: Copy + Default> LetterMap<T> {
 
     fn index(ch: char) -> usize {
         ch as usize - b'a' as usize
+    }
+
+    fn entries(&self) -> impl Iterator<Item = (char, &T)> + '_ {
+        ('a'..='z').zip(self.0.iter())
     }
 }
 
@@ -130,10 +117,9 @@ mod tests {
     fn filter_counts_smoke() {
         let column = LetterSet::from_iter("eiz".chars());
         let usages = LetterCounts::from_iter("eeeii".chars());
-        let result: Vec<_> = column.filter_counts(&usages).collect();
+        let result: BTreeSet<_> = column.filter_counts(&usages).collect();
 
-        // order is alphabetical, but that should be irrelevant to how its used
-        assert_eq!(BTreeSet::from_iter([3, 2, 0]), BTreeSet::from_iter(result));
+        assert_eq!(BTreeSet::from_iter([3, 2, 0]), result);
     }
 
     #[test]

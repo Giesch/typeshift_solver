@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-28
+expression: snapshot
+info:
+  columns:
+    - hdts
+    - ahro
+    - ora
+    - edv
+    - es
+input_file: files/puzzles/2023-11-28.txt
+---
+possible_words: 31
+steps_to_first_solution: 35
+first_solution:
+  - dores
+  - hares
+  - shove
+  - trads
+possible_solutions: 34
+

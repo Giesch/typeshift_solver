@@ -1,0 +1,23 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-30
+expression: snapshot
+info:
+  columns:
+    - apce
+    - dupa
+    - piorl
+    - dtpl
+    - set
+input_file: files/puzzles/2023-11-30.txt
+---
+possible_words: 36
+steps_to_first_solution: 65
+first_solution:
+  - adits
+  - caple
+  - curds
+  - epopt
+  - pulls
+possible_solutions: 2
+

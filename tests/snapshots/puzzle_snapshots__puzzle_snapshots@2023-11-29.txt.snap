@@ -1,0 +1,23 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-11-29
+expression: snapshot
+info:
+  columns:
+    - ctaom
+    - rahif
+    - aebnt
+    - daler
+    - sne
+input_file: files/puzzles/2023-11-29.txt
+---
+possible_words: 55
+steps_to_first_solution: 22
+first_solution:
+  - arbas
+  - chare
+  - minds
+  - often
+  - taels
+possible_solutions: 9
+

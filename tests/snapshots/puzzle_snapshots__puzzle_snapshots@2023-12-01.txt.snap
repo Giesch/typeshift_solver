@@ -1,0 +1,23 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-12-01
+expression: snapshot
+info:
+  columns:
+    - hes
+    - yap
+    - rinu
+    - nfwo
+    - cadf
+    - sxhy
+input_file: files/puzzles/2023-12-01.txt
+---
+possible_words: 7
+steps_to_first_solution: 13
+first_solution:
+  - earwax
+  - haunch
+  - spiffy
+  - synods
+possible_solutions: 1
+

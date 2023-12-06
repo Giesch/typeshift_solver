@@ -1,0 +1,22 @@
+---
+source: tests/puzzle_snapshots.rs
+description: 2023-12-05
+expression: snapshot
+info:
+  columns:
+    - kdtq
+    - run
+    - tei
+    - fpoe
+    - esnr
+input_file: files/puzzles/2023-12-05.txt
+---
+possible_words: 19
+steps_to_first_solution: 10
+first_solution:
+  - drips
+  - knife
+  - queen
+  - tutor
+possible_solutions: 1
+
